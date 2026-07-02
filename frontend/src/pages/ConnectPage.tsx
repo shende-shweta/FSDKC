@@ -7,35 +7,39 @@ import { useUiStore } from '../store/uiStore';
 import type { ConnectCheckResult, ConnectMonitor, Transcript } from '../types';
 
 export default function ConnectPage() {
-  const queryClient = useQueryClient();
-  const selectedId = useUiStore((s) => s.selectedMonitorId);
+  const queryClient   = useQueryClient();
+  const selectedId    = useUiStore((s) => s.selectedMonitorId);
   const setSelectedId = useUiStore((s) => s.setSelectedMonitorId);
-  const { events, isRunning, progress, startConnectCheck } = useRealtimeTest('connect');
+  const { events, isRunning, progress, error, startConnectCheck } = useRealtimeTest('connect');
 
   const [form, setForm] = useState({
-    name: '',
+    name:             '',
     toll_free_number: '',
-    country_code: 'US',
-    carrier: '',
+    country_code:     'US',
+    carrier:          '',
   });
 
   const monitorsQuery = useQuery({
     queryKey: ['connect', 'monitors'],
-    queryFn: () => api.get<{ data: ConnectMonitor[] }>('/connect/monitors'),
+    queryFn:  () => api.get<{ data: ConnectMonitor[] }>('/connect/monitors'),
     refetchInterval: isRunning ? 2000 : false,
   });
 
   const checksQuery = useQuery({
     queryKey: ['connect', 'checks', selectedId],
-    queryFn: () => api.get<{ data: ConnectCheckResult[] }>(`/connect/monitors/${selectedId}/checks`),
-    enabled: selectedId !== null,
+    queryFn:  () =>
+      api.get<{ data: ConnectCheckResult[] }>(`/connect/monitors/${selectedId}/checks`),
+    enabled:  selectedId !== null,
     refetchInterval: isRunning ? 2000 : false,
   });
 
   const transcriptsQuery = useQuery({
     queryKey: ['mongodb', 'transcripts', 'connect', selectedId],
-    queryFn: () => api.get<{ data: Transcript[] }>(`/mongodb/transcripts?module=connect&reference_id=${selectedId}`),
-    enabled: selectedId !== null,
+    queryFn:  () =>
+      api.get<{ data: Transcript[] }>(
+        `/mongodb/transcripts?module=connect&reference_id=${selectedId}`
+      ),
+    enabled:  selectedId !== null,
     refetchInterval: isRunning ? 1500 : false,
   });
 
@@ -49,10 +53,13 @@ export default function ConnectPage() {
 
   const handleRunCheck = async (monitorId: number) => {
     setSelectedId(monitorId);
-    await startConnectCheck(monitorId);
-    queryClient.invalidateQueries({ queryKey: ['connect'] });
-    queryClient.invalidateQueries({ queryKey: ['mongodb'] });
-    queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    try {
+      await startConnectCheck(monitorId);
+    } finally {
+      queryClient.invalidateQueries({ queryKey: ['connect'] });
+      queryClient.invalidateQueries({ queryKey: ['mongodb'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    }
   };
 
   const handleSubmit = (e: FormEvent) => {
@@ -74,27 +81,58 @@ export default function ConnectPage() {
         <form onSubmit={handleSubmit} style={{ padding: '1.25rem' }}>
           <div className="form-grid">
             <div className="form-group">
-              <label>Monitor Name</label>
-              <input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+              <label htmlFor="conn-name">Monitor Name</label>
+              <input
+                id="conn-name"
+                required
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+              />
             </div>
             <div className="form-group">
-              <label>Toll-Free Number</label>
-              <input required value={form.toll_free_number} onChange={(e) => setForm({ ...form, toll_free_number: e.target.value })} />
+              <label htmlFor="conn-tfn">Toll-Free Number</label>
+              <input
+                id="conn-tfn"
+                required
+                value={form.toll_free_number}
+                onChange={(e) => setForm({ ...form, toll_free_number: e.target.value })}
+              />
             </div>
             <div className="form-group">
-              <label>Country</label>
-              <input required value={form.country_code} onChange={(e) => setForm({ ...form, country_code: e.target.value })} />
+              <label htmlFor="conn-country">Country</label>
+              <input
+                id="conn-country"
+                required
+                value={form.country_code}
+                onChange={(e) => setForm({ ...form, country_code: e.target.value })}
+              />
             </div>
             <div className="form-group">
-              <label>Carrier</label>
-              <input value={form.carrier} onChange={(e) => setForm({ ...form, carrier: e.target.value })} placeholder="Verizon" />
+              <label htmlFor="conn-carrier">Carrier</label>
+              <input
+                id="conn-carrier"
+                value={form.carrier}
+                onChange={(e) => setForm({ ...form, carrier: e.target.value })}
+                placeholder="Verizon"
+              />
             </div>
           </div>
+          {createMutation.isError && (
+            <p role="alert" style={{ color: 'var(--danger)', marginBottom: '0.5rem' }}>
+              {(createMutation.error as Error).message}
+            </p>
+          )}
           <button type="submit" className="btn btn-primary" disabled={createMutation.isPending}>
             {createMutation.isPending ? 'Adding…' : 'Add Monitor'}
           </button>
         </form>
       </section>
+
+      {error && (
+        <p role="alert" style={{ color: 'var(--danger)', marginBottom: '1rem' }}>
+          Stream error: {error}
+        </p>
+      )}
 
       <section style={{ marginBottom: '1.5rem' }}>
         <LiveTestFeed events={events} isRunning={isRunning} progress={progress} title="Connect — Live Reachability Test" />
@@ -107,6 +145,8 @@ export default function ConnectPage() {
           </div>
           {monitorsQuery.isLoading ? (
             <div className="empty">Loading…</div>
+          ) : monitorsQuery.isError ? (
+            <div className="error">Failed to load monitors.</div>
           ) : (
             <table>
               <thead>
@@ -114,7 +154,7 @@ export default function ConnectPage() {
                   <th>Monitor</th>
                   <th>Reachability</th>
                   <th>Status</th>
-                  <th></th>
+                  <th />
                 </tr>
               </thead>
               <tbody>
@@ -136,7 +176,8 @@ export default function ConnectPage() {
                       <button
                         className="btn btn-sm btn-secondary"
                         disabled={isRunning}
-                        onClick={(e) => { e.stopPropagation(); handleRunCheck(m.id); }}
+                        aria-label={`Run reachability test for ${m.name}`}
+                        onClick={(e) => { e.stopPropagation(); void handleRunCheck(m.id); }}
                       >
                         {isRunning && selectedId === m.id ? 'Testing…' : 'Run Test'}
                       </button>
@@ -152,7 +193,12 @@ export default function ConnectPage() {
           <div className="card-header">
             <strong>Check History</strong>
             {selectedId && (
-              <button className="btn btn-sm btn-primary" disabled={isRunning} onClick={() => handleRunCheck(selectedId)}>
+              <button
+                className="btn btn-sm btn-primary"
+                disabled={isRunning}
+                aria-label="Run reachability test for selected monitor"
+                onClick={() => void handleRunCheck(selectedId)}
+              >
                 Run Test
               </button>
             )}

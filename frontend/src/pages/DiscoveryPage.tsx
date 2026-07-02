@@ -8,30 +8,33 @@ import type { DiscoveryJob, DiscoveryNode, Transcript } from '../types';
 import IvrTree from '../components/IvrTree';
 
 export default function DiscoveryPage() {
-  const queryClient = useQueryClient();
-  const selectedId = useUiStore((s) => s.selectedDiscoveryId);
+  const queryClient  = useQueryClient();
+  const selectedId   = useUiStore((s) => s.selectedDiscoveryId);
   const setSelectedId = useUiStore((s) => s.setSelectedDiscoveryId);
-  const { events, isRunning, progress, startDiscovery } = useRealtimeTest('discovery');
+  const { events, isRunning, progress, error, startDiscovery } = useRealtimeTest('discovery');
 
   const [form, setForm] = useState({ name: '', phone_number: '', country_code: 'US' });
 
   const jobsQuery = useQuery({
     queryKey: ['discovery', 'jobs'],
-    queryFn: () => api.get<{ data: DiscoveryJob[] }>('/discovery/jobs'),
+    queryFn:  () => api.get<{ data: DiscoveryJob[] }>('/discovery/jobs'),
     refetchInterval: isRunning ? 2000 : false,
   });
 
   const treeQuery = useQuery({
     queryKey: ['discovery', 'tree', selectedId],
-    queryFn: () => api.get<{ tree: DiscoveryNode[] }>(`/discovery/jobs/${selectedId}/tree`),
-    enabled: selectedId !== null,
+    queryFn:  () => api.get<{ tree: DiscoveryNode[] }>(`/discovery/jobs/${selectedId}/tree`),
+    enabled:  selectedId !== null,
     refetchInterval: isRunning ? 2000 : false,
   });
 
   const transcriptsQuery = useQuery({
     queryKey: ['mongodb', 'transcripts', 'discovery', selectedId],
-    queryFn: () => api.get<{ data: Transcript[] }>(`/mongodb/transcripts?module=discovery&reference_id=${selectedId}`),
-    enabled: selectedId !== null,
+    queryFn:  () =>
+      api.get<{ data: Transcript[] }>(
+        `/mongodb/transcripts?module=discovery&reference_id=${selectedId}`
+      ),
+    enabled:  selectedId !== null,
     refetchInterval: isRunning ? 1500 : false,
   });
 
@@ -45,10 +48,13 @@ export default function DiscoveryPage() {
 
   const handleStart = async (jobId: number) => {
     setSelectedId(jobId);
-    await startDiscovery(jobId);
-    queryClient.invalidateQueries({ queryKey: ['discovery'] });
-    queryClient.invalidateQueries({ queryKey: ['mongodb'] });
-    queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    try {
+      await startDiscovery(jobId);
+    } finally {
+      queryClient.invalidateQueries({ queryKey: ['discovery'] });
+      queryClient.invalidateQueries({ queryKey: ['mongodb'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    }
   };
 
   const handleSubmit = (e: FormEvent) => {
@@ -70,23 +76,52 @@ export default function DiscoveryPage() {
         <form onSubmit={handleSubmit} style={{ padding: '1.25rem' }}>
           <div className="form-grid">
             <div className="form-group">
-              <label>Job Name</label>
-              <input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Bank IVR - US" />
+              <label htmlFor="disc-name">Job Name</label>
+              <input
+                id="disc-name"
+                required
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                placeholder="Bank IVR - US"
+              />
             </div>
             <div className="form-group">
-              <label>Phone Number</label>
-              <input required value={form.phone_number} onChange={(e) => setForm({ ...form, phone_number: e.target.value })} placeholder="+18005551234" />
+              <label htmlFor="disc-phone">Phone Number</label>
+              <input
+                id="disc-phone"
+                required
+                value={form.phone_number}
+                onChange={(e) => setForm({ ...form, phone_number: e.target.value })}
+                placeholder="+18005551234"
+              />
             </div>
             <div className="form-group">
-              <label>Country</label>
-              <input required value={form.country_code} onChange={(e) => setForm({ ...form, country_code: e.target.value })} placeholder="US" />
+              <label htmlFor="disc-country">Country</label>
+              <input
+                id="disc-country"
+                required
+                value={form.country_code}
+                onChange={(e) => setForm({ ...form, country_code: e.target.value })}
+                placeholder="US"
+              />
             </div>
           </div>
+          {createMutation.isError && (
+            <p role="alert" style={{ color: 'var(--danger)', marginBottom: '0.5rem' }}>
+              {(createMutation.error as Error).message}
+            </p>
+          )}
           <button type="submit" className="btn btn-primary" disabled={createMutation.isPending}>
             {createMutation.isPending ? 'Creating…' : 'Create Job'}
           </button>
         </form>
       </section>
+
+      {error && (
+        <p role="alert" style={{ color: 'var(--danger)', marginBottom: '1rem' }}>
+          Stream error: {error}
+        </p>
+      )}
 
       <section style={{ marginBottom: '1.5rem' }}>
         <LiveTestFeed events={events} isRunning={isRunning} progress={progress} title="Discovery — Live IVR Test" />
@@ -99,6 +134,8 @@ export default function DiscoveryPage() {
           </div>
           {jobsQuery.isLoading ? (
             <div className="empty">Loading…</div>
+          ) : jobsQuery.isError ? (
+            <div className="error">Failed to load jobs.</div>
           ) : (
             <table>
               <thead>
@@ -106,7 +143,7 @@ export default function DiscoveryPage() {
                   <th>Name</th>
                   <th>Status</th>
                   <th>Nodes</th>
-                  <th></th>
+                  <th />
                 </tr>
               </thead>
               <tbody>
@@ -127,7 +164,8 @@ export default function DiscoveryPage() {
                         <button
                           className="btn btn-sm btn-primary"
                           disabled={isRunning}
-                          onClick={(e) => { e.stopPropagation(); handleStart(job.id); }}
+                          aria-label={`Start test for ${job.name}`}
+                          onClick={(e) => { e.stopPropagation(); void handleStart(job.id); }}
                         >
                           {isRunning && selectedId === job.id ? 'Running…' : 'Start Test'}
                         </button>
