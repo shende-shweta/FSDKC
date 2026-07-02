@@ -180,13 +180,13 @@ erDiagram
         bigint      id              PK
         varchar     name
         varchar     phone_number
-        varchar(5)  country_code
+        varchar_5   country_code
         enum        status          "pending|running|completed|failed"
         int         menu_depth
         int         nodes_discovered
         json        languages
-        timestamp   started_at      NULL
-        timestamp   completed_at    NULL
+        timestamp   started_at
+        timestamp   completed_at
         timestamp   created_at
         timestamp   updated_at
     }
@@ -194,9 +194,9 @@ erDiagram
     DISCOVERY_NODES {
         bigint      id              PK
         bigint      discovery_job_id FK
-        bigint      parent_id       FK_SELF NULL
+        bigint      parent_id
         text        prompt_text
-        varchar     dtmf_option     NULL
+        varchar     dtmf_option
         varchar     node_type       "menu|prompt|transfer"
         int         depth
         timestamp   created_at
@@ -207,11 +207,11 @@ erDiagram
         bigint      id              PK
         varchar     name
         varchar     toll_free_number
-        varchar(5)  country_code
-        varchar     carrier         NULL
+        varchar_5   country_code
+        varchar     carrier
         enum        status          "active|paused|alert"
         float       reachability_pct
-        timestamp   last_checked_at NULL
+        timestamp   last_checked_at
         timestamp   created_at
         timestamp   updated_at
     }
@@ -220,9 +220,9 @@ erDiagram
         bigint      id              PK
         bigint      connect_monitor_id FK
         boolean     reachable
-        int         latency_ms      NULL
-        varchar     carrier_route   NULL
-        varchar     failure_reason  NULL
+        int         latency_ms
+        varchar     carrier_route
+        varchar     failure_reason
         timestamp   checked_at
         timestamp   created_at
         timestamp   updated_at
@@ -245,16 +245,16 @@ erDiagram
 #### `transcripts`
 ```jsonc
 {
-  "_id": ObjectId,
-  "module": "discovery" | "connect",
-  "reference_id": 42,          // FK → discovery_jobs.id or connect_monitors.id
+  "_id": "ObjectId",
+  "module": "discovery | connect",
+  "reference_id": 42,
   "payload": {
     "event": "prompt_detected",
     "transcript": "Welcome. Press 1 for accounts.",
     "session_id": "uuid-v4"
   },
-  "created_at": ISODate,
-  "app": "klearcom"            // seed-data discriminator
+  "created_at": "ISODate",
+  "app": "klearcom"
 }
 // Index: { module: 1, reference_id: 1, created_at: -1 }
 ```
@@ -262,19 +262,19 @@ erDiagram
 #### `test_events`
 ```jsonc
 {
-  "_id": ObjectId,
+  "_id": "ObjectId",
   "session_id": "uuid-v4",
-  "module": "discovery" | "connect",
+  "module": "discovery | connect",
   "reference_id": 42,
   "event": {
-    "type": "step" | "status" | "complete",
+    "type": "step | status | complete",
     "event": "dtmf_sent",
     "message": "Sending DTMF: 1",
     "progress": 45,
-    "reachable": true,          // connect only
-    "transcript": "…"           // discovery only
+    "reachable": true,
+    "transcript": "..."
   },
-  "created_at": ISODate
+  "created_at": "ISODate"
 }
 // Index: { session_id: 1, created_at: 1 }
 ```
@@ -282,14 +282,14 @@ erDiagram
 #### `call_diagnostics`
 ```jsonc
 {
-  "_id": ObjectId,
-  "module": "discovery" | "connect",
+  "_id": "ObjectId",
+  "module": "discovery | connect",
   "reference_id": 42,
   "session_id": "uuid-v4",
   "mos_score": 4.2,
   "latency_ms": 115,
   "packet_loss_pct": 0,
-  "created_at": ISODate
+  "created_at": "ISODate"
 }
 // Index: { module: 1, reference_id: 1 }
 ```
@@ -367,57 +367,32 @@ All endpoints share the prefix `/api`. No authentication middleware is currently
 **`POST /discovery/jobs` — request body**
 ```jsonc
 {
-  "name": "Bank IVR - US",          // required, string, max:255
-  "phone_number": "+18005551234",    // required, string, max:50
-  "country_code": "US",             // required, string, max:5
-  "languages": ["en"]               // optional, array of strings
-}
-```
-
-**`POST /discovery/jobs` — 201 response**
-```jsonc
-{
-  "data": {
-    "id": 4,
-    "name": "Bank IVR - US",
-    "phone_number": "+18005551234",
-    "country_code": "US",
-    "status": "pending",
-    "menu_depth": 0,
-    "nodes_discovered": 0,
-    "languages": ["en"],
-    "started_at": null,
-    "completed_at": null
-  }
+  "name": "Bank IVR - US",
+  "phone_number": "+18005551234",
+  "country_code": "US",
+  "languages": ["en"]
 }
 ```
 
 **`POST /discovery/jobs/{id}/start` — 200 response**
 ```jsonc
-{ "session_id": "550e8400-e29b-41d4-a716-446655440000", "message": "Discovery test started — connect to stream endpoint" }
+{
+  "session_id": "550e8400-e29b-41d4-a716-446655440000",
+  "message": "Discovery test started — connect to stream endpoint"
+}
 ```
 
-**`GET /discovery/jobs/{id}/tree` — response**
+**`GET /discovery/jobs/{id}/tree` — response (abbreviated)**
 ```jsonc
 {
   "job_id": 1,
   "job_name": "Bank IVR Discovery - US",
   "tree": [
     {
-      "id": 1,
-      "prompt_text": "Welcome to Acme Bank. Press 1 for accounts…",
-      "dtmf_option": null,
-      "node_type": "menu",
-      "depth": 0,
+      "id": 1, "prompt_text": "Welcome…", "dtmf_option": null,
+      "node_type": "menu", "depth": 0,
       "children": [
-        {
-          "id": 2,
-          "prompt_text": "Accounts menu. Press 1 for balance…",
-          "dtmf_option": "1",
-          "node_type": "menu",
-          "depth": 1,
-          "children": []
-        }
+        { "id": 2, "prompt_text": "Accounts menu…", "dtmf_option": "1", "node_type": "menu", "depth": 1, "children": [] }
       ]
     }
   ]
@@ -436,23 +411,12 @@ All endpoints share the prefix `/api`. No authentication middleware is currently
 | `POST` | `/connect/monitors/{id}/run-check` | Trigger a reachability test; returns `session_id` |
 | `GET` | `/connect/monitors/{id}/stream?session_id=` | SSE stream of test events |
 
-**`POST /connect/monitors` — request body**
-```jsonc
-{
-  "name": "US Sales TFN",             // required, string, max:255
-  "toll_free_number": "18005559999",  // required, string, max:50
-  "country_code": "US",               // required, string, max:5
-  "carrier": "Verizon"                // optional, string, max:100
-}
-```
-
-**`GET /connect/monitors/{id}/checks` — response**
+**`GET /connect/monitors/{id}/checks` — response (abbreviated)**
 ```jsonc
 {
   "monitor": { "id": 1, "name": "US Sales TFN", "toll_free_number": "18005559999", "country_code": "US" },
   "data": [
-    { "id": 1, "reachable": true,  "latency_ms": 245, "carrier_route": "US-East -> Verizon SIP", "failure_reason": null, "checked_at": "2026-07-02T14:00:00Z" },
-    { "id": 2, "reachable": false, "latency_ms": null, "carrier_route": null, "failure_reason": "Carrier routing failure", "checked_at": "2026-07-02T13:55:00Z" }
+    { "id": 1, "reachable": true, "latency_ms": 245, "carrier_route": "US-East -> Verizon SIP", "failure_reason": null, "checked_at": "2026-07-02T14:00:00Z" }
   ],
   "computed": { "reachability_pct": 85.0, "status": "alert" }
 }
@@ -460,7 +424,7 @@ All endpoints share the prefix `/api`. No authentication middleware is currently
 
 ### SSE Stream Protocol
 
-Both stream endpoints (`/discovery/jobs/{id}/stream` and `/connect/monitors/{id}/stream`) return `Content-Type: text/event-stream`. Each frame is a JSON-encoded `TestEvent` document:
+Both stream endpoints return `Content-Type: text/event-stream`. Each frame is a JSON-encoded `TestEvent`:
 
 ```
 data: {"session_id":"…","module":"connect","event":{"type":"step","event":"carrier_selected","message":"Carrier route selected","progress":40},"created_at":"…"}
@@ -468,22 +432,236 @@ data: {"session_id":"…","module":"connect","event":{"type":"step","event":"car
 data: {"session_id":"…","module":"connect","event":{"type":"complete","status":"reachable","message":"TFN is reachable","progress":100,"reachable":true,"latency_ms":312},"created_at":"…"}
 ```
 
-- `event.type` values: `status` (initial), `step` (in-progress), `complete` (terminal — client closes `EventSource`).
+- `event.type` values: `status` (initial) → `step` (in-progress) → `complete` (terminal).
 - `event.progress` (0–100) drives the frontend progress bar.
-- The stream terminates after 30 s (60 × 500 ms poll cycles) if `complete` is not received.
+- Stream auto-terminates after 30 s (60 × 500 ms poll cycles) if `complete` is not received.
 
 ### Legacy Reports
 
 | Method | Path | Description |
 |---|---|---|
 | `GET` | `/legacy/reports/carriers?country_code=&carrier=` | Carrier reachability summary per monitor |
-| `GET` | `/legacy/reports/ivr/{jobId}` | IVR depth report (node count, max depth, transfer count) |
+| `GET` | `/legacy/reports/ivr/{jobId}` | IVR depth report: node count, max depth, transfer count |
 
 ### Error Response Format
 
-All error responses use standard HTTP status codes with a JSON body:
 ```jsonc
-{ "message": "The name field is required.", "errors": { "name": ["The name field is required."] } }  // 422
-{ "message": "Not found" }   // 404
-{ "message": "Job already running" }  // 409
+// 422 Validation
+{ "message": "The name field is required.", "errors": { "name": ["The name field is required."] } }
+// 404
+{ "message": "Not found" }
+// 409
+{ "message": "Job already running" }
 ```
+
+---
+
+## V. Infrastructure & DevOps
+
+### Environment Overview
+
+```mermaid
+flowchart LR
+    subgraph Local["Local Development"]
+        DevAPI_Node["dev-api (Node.js :8080)\nIn-memory store\n+ MongoMemoryServer"]
+        Frontend_Dev["Vite dev server (:5173)\nVITE_API_URL=localhost:8080"]
+    end
+
+    subgraph Staging["Staging / Production"]
+        Nginx["Nginx\n(reverse proxy + TLS termination)"]
+        Laravel["Laravel FPM\n(:9000 PHP-FPM)"]
+        MySQLDB[("MySQL 8\n(jobs, monitors, checks)")]
+        MongoDB_Atlas[("MongoDB Atlas\n(transcripts, events, diagnostics)")]
+        Redis[("Redis\n(Laravel Cache + Queue)")]
+        Frontend_Dist["React SPA\n(Vite build → /public dist served by Nginx)"]
+    end
+
+    Frontend_Dev -->|"REST / SSE (proxied by Vite)"| DevAPI_Node
+    Browser -->|"HTTPS"| Nginx
+    Nginx -->|"proxy_pass"| Laravel
+    Nginx -->|"static files"| Frontend_Dist
+    Laravel --> MySQLDB
+    Laravel --> MongoDB_Atlas
+    Laravel --> Redis
+```
+
+### Deployment Strategy
+
+| Tier | Recommended Approach |
+|---|---|
+| Frontend | Build with `vite build`; serve static assets from Nginx or a CDN (Cloudflare / CloudFront). |
+| Backend | Docker container running PHP 8.x + php-fpm; Nginx as reverse proxy. Alternatively, Laravel Forge / Vapor for managed deployments. |
+| MySQL | Managed RDS (AWS) or Cloud SQL (GCP); automated daily snapshots. |
+| MongoDB | MongoDB Atlas (already used in dev); M10+ cluster for production with Atlas Search and automated backups. |
+| Cache / Queue | Redis (ElastiCache or Redis Cloud). Required if replacing SSE polling with Laravel Horizon + pub/sub. |
+
+### Docker Compose (local full-stack)
+
+```yaml
+# Indicative — not currently committed to the repo
+services:
+  backend:
+    build: ./backend
+    environment:
+      DB_CONNECTION: mysql
+      DB_HOST: db
+      MONGODB_URI: mongodb://mongo:27017
+      CACHE_DRIVER: redis
+      REDIS_HOST: redis
+    depends_on: [db, mongo, redis]
+
+  frontend:
+    build: ./frontend
+    environment:
+      VITE_API_URL: http://backend/api
+    ports: ["5173:80"]
+
+  db:
+    image: mysql:8.0
+    volumes: [db_data:/var/lib/mysql]
+
+  mongo:
+    image: mongo:7
+    volumes: [mongo_data:/data/db]
+
+  redis:
+    image: redis:7-alpine
+
+volumes:
+  db_data:
+  mongo_data:
+```
+
+### CI/CD Pipeline Requirements
+
+```mermaid
+flowchart LR
+    PR["Pull Request\n(feature branch)"] --> CI
+
+    subgraph CI["CI — GitHub Actions"]
+        Lint["PHP CS Fixer\n+ ESLint + tsc --noEmit"]
+        Test_PHP["PHPUnit\n(Unit + Feature)"]
+        Test_JS["Vitest\n(frontend unit tests)"]
+        Build["vite build\n(type-check + bundle)"]
+        Lint --> Test_PHP
+        Lint --> Test_JS
+        Test_PHP --> Build
+        Test_JS --> Build
+    end
+
+    CI -->|"all green"| Review["Code Review"]
+    Review -->|"approved"| Merge["Merge to main"]
+    Merge --> CD
+
+    subgraph CD["CD — Deploy"]
+        Deploy_Staging["Deploy → Staging\n(auto on merge to main)"]
+        Smoke["Smoke test:\nGET /api/health"]
+        Deploy_Prod["Deploy → Production\n(manual gate)"]
+        Deploy_Staging --> Smoke --> Deploy_Prod
+    end
+```
+
+**Current test coverage gaps (from code analysis):**
+- `ReachabilityService` — unit tests needed (happy path, zero-check edge case, alert threshold boundary).
+- `IvrTreeBuilder` — unit tests needed (flat list, deep nesting, orphan nodes).
+- Integration tests for SSE stream endpoints are absent.
+
+**Required CI secrets:**
+- `MONGODB_URI` (test Atlas cluster or in-memory via `mongodb-memory-server`)
+- `DB_CONNECTION=sqlite` for in-memory SQLite during PHPUnit runs
+- `VITE_API_URL` for frontend build validation
+
+---
+
+## VI. Security & Compliance
+
+### Current State
+
+> **⚠️ No authentication or authorisation layer exists.** All API endpoints are publicly accessible. This is the single highest-priority security gap before any production deployment.
+
+### Authentication — Recommended Implementation
+
+**Laravel Sanctum** (SPA token-based auth) is the idiomatic choice for this stack:
+
+```mermaid
+sequenceDiagram
+    participant Browser
+    participant Laravel
+    participant MySQL
+
+    Browser->>Laravel: POST /api/auth/login {email, password}
+    Laravel->>MySQL: Verify credentials (bcrypt)
+    MySQL-->>Laravel: User record
+    Laravel-->>Browser: { token: "…", user: {…} } + HttpOnly cookie (Sanctum)
+
+    Browser->>Laravel: GET /api/discovery/jobs\nAuthorization: Bearer <token>
+    Laravel->>Laravel: Sanctum middleware: token validation
+    Laravel-->>Browser: 200 { data: […] }
+
+    Browser->>Laravel: GET /api/discovery/jobs\n(no token)
+    Laravel-->>Browser: 401 Unauthenticated
+```
+
+**Implementation checklist:**
+- Add `users` table (migration) with `email`, `password` (bcrypt), `role` (`admin | operator | viewer`).
+- Install `laravel/sanctum`; apply `auth:sanctum` middleware to all API route groups.
+- Add `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me` endpoints.
+- Frontend: store token in `sessionStorage` (not `localStorage` — XSS risk); attach via `Authorization: Bearer` header in `api/client.ts`.
+- Add a `LoginPage.tsx` guarded route; redirect unauthenticated users before React Query fires.
+
+### Authorisation (RBAC)
+
+| Role | Permissions |
+|---|---|
+| `admin` | Full CRUD + bulk import + legacy reports |
+| `operator` | Create/run tests; read all data |
+| `viewer` | Read-only (dashboard, checks, transcripts) |
+
+### Input Validation
+
+| Layer | Status |
+|---|---|
+| Laravel controllers (`store`, `runCheck`) | ✅ `$request->validate()` rules in place post-refactor |
+| Dev-API POST endpoints | ✅ Required-field checks + 422 responses added |
+| Bulk-import batch cap (100 items) | ✅ Added in refactor |
+| `extract()` on request data | ✅ Removed; replaced with explicit property access |
+
+### Data Encryption & Privacy
+
+| Concern | Recommendation |
+|---|---|
+| Transport | TLS 1.2+ enforced at Nginx; HSTS header (`Strict-Transport-Security`). |
+| Secrets at rest | All credentials (DB passwords, MongoDB URI, API keys) stored in environment variables; never committed to git. Use `.env` + Laravel config caching in production. |
+| MongoDB Atlas | Enable encryption-at-rest (AES-256) and TLS connections. Restrict Atlas IP access list to backend server IPs only. |
+| MySQL | Enable SSL connections; use a dedicated DB user with least-privilege grants (`SELECT`, `INSERT`, `UPDATE` on `klearcom.*` only). |
+| Call transcripts (PII) | Transcripts stored in MongoDB may contain caller speech. Consider field-level encryption or a data-retention TTL index (`expireAfterSeconds`) to auto-purge transcripts older than N days. |
+| CORS | Currently `cors()` allows all origins (dev-API). Production Laravel config (`config/cors.php`) must restrict `allowed_origins` to the known frontend domain. |
+
+### SSE Stream Security
+
+- The `session_id` query parameter in the SSE URL is a UUID (v4, cryptographically random from `Str::uuid()`). This provides a reasonable access token for a single test session.
+- After authentication is added, validate that `session_id` belongs to the authenticated user before opening the stream.
+- Set `X-Accel-Buffering: no` (already present) to prevent Nginx proxy buffering breaking SSE.
+
+### Dependency Management
+
+- Pin all npm dependencies to exact versions (`package-lock.json`); run `npm audit` in CI.
+- Use `composer.lock`; run `composer audit` in CI.
+- PHP 8.x: avoid `extract()` on untrusted input (fixed in `LegacyDataMapper`).
+
+---
+
+## Open Questions
+
+| # | Question | Impact | Suggested Owner |
+|---|---|---|---|
+| OQ-1 | **Authentication design:** Will Sanctum (SPA) suffice, or do we need OAuth 2.0 / OIDC for enterprise SSO (SAML, Azure AD)? | Architecture of auth layer | Product / Security |
+| OQ-2 | **SSE vs WebSocket vs Redis pub/sub:** The current SSE implementation polls MongoDB every 500 ms. Under high concurrency (many simultaneous tests) this creates significant MongoDB read load. Should we introduce Laravel Reverb (WebSocket) or a Redis pub/sub channel? | Scalability, infrastructure cost | Engineering Lead |
+| OQ-3 | **Real call execution:** `RealTimeTestService` currently simulates test steps with `usleep()` / `random_int()`. What telephony integration (Twilio, Bandwidth, internal SIP gateway) will execute actual test calls? | Core product functionality | Platform / Telecom team |
+| OQ-4 | **`call_success_rate_pct` and `transfer_success_rate_pct`** are hard-coded to `94.2` and `97.8` in the dashboard. What is the data source and computation model for these metrics? | Data accuracy / KPI credibility | Product / Analytics |
+| OQ-5 | **Data retention policy:** How long should call transcripts and `test_events` documents be retained in MongoDB? No TTL index exists today. | Storage cost, GDPR compliance | Legal / Engineering |
+| OQ-6 | **Multi-tenancy:** Is Klearcom a single-tenant internal tool, or will it be offered as a multi-tenant SaaS? This has material impact on the data model (tenant isolation), RBAC design, and billing. | Architecture scope | Product |
+| OQ-7 | **Pagination:** `GET /discovery/jobs` and `GET /connect/monitors` return all records. At what volume do we need cursor/offset pagination? | Performance | Engineering |
+| OQ-8 | **Dev-API vs Laravel parity:** The Node.js dev-API is maintained in parallel with the Laravel backend. Long-term, should the dev-API be generated from an OpenAPI spec to guarantee parity, or deprecated once the Laravel backend can run locally with a single `docker compose up`? | Developer experience, maintenance cost | Engineering |
+| OQ-9 | **Alerting / Notifications:** When a monitor's reachability drops below the 90 % threshold, is in-UI badge display sufficient, or do we need outbound alerting (email, PagerDuty, Slack webhook)? | Operational utility | Product / Ops |
+| OQ-10 | **Mobile / responsive design:** Is the SPA required to function on mobile viewports, or is desktop-only acceptable? The current layout uses CSS Grid with no explicit responsive breakpoints. | Frontend scope | Design / Product |
