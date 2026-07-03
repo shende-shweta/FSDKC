@@ -6,12 +6,19 @@ use App\Models\ConnectCheckResult;
 use App\Models\ConnectMonitor;
 use App\Models\DiscoveryJob;
 use App\Models\DiscoveryNode;
+use App\Services\ReachabilityService;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
+/**
+ * RealTimeTestService — Async test orchestration for Discovery and Connect modules.
+ * AC-B02: Delegate to ReachabilityService and add structured logging.
+ */
 class RealTimeTestService
 {
     public function __construct(
-        private readonly MongoService $mongo
+        private readonly MongoService $mongo,
+        private readonly ReachabilityService $reachability
     ) {}
 
     public function createSession(): string
@@ -76,6 +83,12 @@ class RealTimeTestService
             'type' => 'complete', 'status' => 'completed',
             'message' => "Discovery finished — {$nodeCount} nodes mapped", 'progress' => 100,
         ]);
+
+        Log::info('Discovery test completed', [
+            'job_id'     => $jobId,
+            'session_id' => $sessionId,
+            'nodes'      => $nodeCount,
+        ]);
     }
 
     public function runConnectTest(int $monitorId, string $sessionId): void
@@ -114,13 +127,19 @@ class RealTimeTestService
             'checked_at' => now(),
         ]);
 
-        $recent = ConnectCheckResult::where('connect_monitor_id', $monitorId)->orderByDesc('checked_at')->limit(20)->get();
-        $rate = $recent->count() > 0 ? ($recent->where('reachable', true)->count() / $recent->count()) * 100 : 100;
+        // Use ReachabilityService instead of inline calculation (AC-B02, AC-A01)
+        $recent = ConnectCheckResult::where('connect_monitor_id', $monitorId)
+            ->orderByDesc('checked_at')
+            ->limit(ReachabilityService::WINDOW)
+            ->get();
+
+        $rate   = $this->reachability->computeRate($recent);
+        $status = $this->reachability->statusFromRate($rate);
 
         $monitor->update([
-            'reachability_pct' => round($rate, 2),
-            'status' => $rate < 90 ? 'alert' : 'active',
-            'last_checked_at' => now(),
+            'reachability_pct' => $rate,
+            'status'           => $status,
+            'last_checked_at'  => now(),
         ]);
 
         $this->mongo->storeTranscript('connect', $monitorId, [
@@ -130,11 +149,18 @@ class RealTimeTestService
         ]);
 
         $this->mongo->storeTestEvent($sessionId, 'connect', $monitorId, [
-            'type' => 'complete',
-            'status' => $reachable ? 'reachable' : 'failed',
-            'message' => $reachable ? 'TFN is reachable' : 'TFN check failed',
-            'progress' => 100,
-            'reachable' => $reachable,
+            'type'       => 'complete',
+            'status'     => $reachable ? 'reachable' : 'failed',
+            'message'    => $reachable ? 'TFN is reachable' : 'TFN check failed',
+            'progress'   => 100,
+            'reachable'  => $reachable,
+            'latency_ms' => $latency,
+        ]);
+
+        Log::info('Connect test completed', [
+            'monitor_id' => $monitorId,
+            'session_id' => $sessionId,
+            'reachable'  => $reachable,
             'latency_ms' => $latency,
         ]);
     }
