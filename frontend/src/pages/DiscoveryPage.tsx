@@ -1,17 +1,25 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FormEvent, useState } from 'react';
 import { api } from '../api/client';
+import IvrTree from '../components/IvrTree';
 import LiveTestFeed from '../components/LiveTestFeed';
 import { useRealtimeTest } from '../hooks/useRealtimeTest';
 import { useUiStore } from '../store/uiStore';
 import type { DiscoveryJob, DiscoveryNode, Transcript } from '../types';
-import IvrTree from '../components/IvrTree';
 
+/**
+ * AC-C02 improvements applied:
+ *   - SSE error rendered as <p role="alert">.
+ *   - Form <label> elements linked via htmlFor / id pairs (WCAG 1.3.1).
+ *   - Floating async Promise fixed with void keyword.
+ *   - jobsQuery.isError fallback rendered in jobs table.
+ *   - Cache invalidation moved to finally block.
+ */
 export default function DiscoveryPage() {
   const queryClient = useQueryClient();
-  const selectedId = useUiStore((s) => s.selectedDiscoveryId);
+  const selectedId  = useUiStore((s) => s.selectedDiscoveryId);
   const setSelectedId = useUiStore((s) => s.setSelectedDiscoveryId);
-  const { events, isRunning, progress, startDiscovery } = useRealtimeTest('discovery');
+  const { events, isRunning, progress, error, startDiscovery } = useRealtimeTest('discovery');
 
   const [form, setForm] = useState({ name: '', phone_number: '', country_code: 'US' });
 
@@ -30,7 +38,10 @@ export default function DiscoveryPage() {
 
   const transcriptsQuery = useQuery({
     queryKey: ['mongodb', 'transcripts', 'discovery', selectedId],
-    queryFn: () => api.get<{ data: Transcript[] }>(`/mongodb/transcripts?module=discovery&reference_id=${selectedId}`),
+    queryFn: () =>
+      api.get<{ data: Transcript[] }>(
+        `/mongodb/transcripts?module=discovery&reference_id=${selectedId}`,
+      ),
     enabled: selectedId !== null,
     refetchInterval: isRunning ? 1500 : false,
   });
@@ -43,12 +54,16 @@ export default function DiscoveryPage() {
     },
   });
 
+  // AC-C02: cache invalidation in finally so it runs even on error
   const handleStart = async (jobId: number) => {
     setSelectedId(jobId);
-    await startDiscovery(jobId);
-    queryClient.invalidateQueries({ queryKey: ['discovery'] });
-    queryClient.invalidateQueries({ queryKey: ['mongodb'] });
-    queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    try {
+      await startDiscovery(jobId);
+    } finally {
+      queryClient.invalidateQueries({ queryKey: ['discovery'] });
+      queryClient.invalidateQueries({ queryKey: ['mongodb'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    }
   };
 
   const handleSubmit = (e: FormEvent) => {
@@ -63,23 +78,49 @@ export default function DiscoveryPage() {
         <p>Automated IVR discovery with real-time MongoDB event streaming</p>
       </header>
 
+      {/* AC-C02: SSE error banner */}
+      {error && (
+        <p role="alert" style={{ color: 'var(--danger)', marginBottom: '1rem' }}>
+          {error}
+        </p>
+      )}
+
       <section className="card" style={{ marginBottom: '1.5rem' }}>
         <div className="card-header">
           <strong>New Discovery Job</strong>
         </div>
         <form onSubmit={handleSubmit} style={{ padding: '1.25rem' }}>
           <div className="form-grid">
+            {/* AC-C02: htmlFor / id pairs for screen-reader association */}
             <div className="form-group">
-              <label>Job Name</label>
-              <input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Bank IVR - US" />
+              <label htmlFor="disc-name">Job Name</label>
+              <input
+                id="disc-name"
+                required
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                placeholder="Bank IVR - US"
+              />
             </div>
             <div className="form-group">
-              <label>Phone Number</label>
-              <input required value={form.phone_number} onChange={(e) => setForm({ ...form, phone_number: e.target.value })} placeholder="+18005551234" />
+              <label htmlFor="disc-phone">Phone Number</label>
+              <input
+                id="disc-phone"
+                required
+                value={form.phone_number}
+                onChange={(e) => setForm({ ...form, phone_number: e.target.value })}
+                placeholder="+18005551234"
+              />
             </div>
             <div className="form-group">
-              <label>Country</label>
-              <input required value={form.country_code} onChange={(e) => setForm({ ...form, country_code: e.target.value })} placeholder="US" />
+              <label htmlFor="disc-country">Country</label>
+              <input
+                id="disc-country"
+                required
+                value={form.country_code}
+                onChange={(e) => setForm({ ...form, country_code: e.target.value })}
+                placeholder="US"
+              />
             </div>
           </div>
           <button type="submit" className="btn btn-primary" disabled={createMutation.isPending}>
@@ -99,6 +140,9 @@ export default function DiscoveryPage() {
           </div>
           {jobsQuery.isLoading ? (
             <div className="empty">Loading…</div>
+          ) : jobsQuery.isError ? (
+            /* AC-C02: render error state instead of silent empty table */
+            <div className="empty" style={{ color: 'var(--danger)' }}>Failed to load jobs.</div>
           ) : (
             <table>
               <thead>
@@ -126,8 +170,10 @@ export default function DiscoveryPage() {
                       {(job.status === 'pending' || job.status === 'completed') && (
                         <button
                           className="btn btn-sm btn-primary"
+                          aria-label={`Start test for ${job.name}`}
                           disabled={isRunning}
-                          onClick={(e) => { e.stopPropagation(); handleStart(job.id); }}
+                          // AC-C02: void prevents floating-Promise lint warning
+                          onClick={(e) => { e.stopPropagation(); void handleStart(job.id); }}
                         >
                           {isRunning && selectedId === job.id ? 'Running…' : 'Start Test'}
                         </button>

@@ -6,11 +6,19 @@ import { useRealtimeTest } from '../hooks/useRealtimeTest';
 import { useUiStore } from '../store/uiStore';
 import type { ConnectCheckResult, ConnectMonitor, Transcript } from '../types';
 
+/**
+ * AC-C02 improvements applied:
+ *   - SSE error rendered as <p role="alert">.
+ *   - Form <label> elements linked via htmlFor / id pairs (WCAG 1.3.1).
+ *   - Floating async Promise fixed with void keyword.
+ *   - monitorsQuery.isError fallback rendered in monitors table.
+ *   - Cache invalidation moved to finally block.
+ */
 export default function ConnectPage() {
   const queryClient = useQueryClient();
-  const selectedId = useUiStore((s) => s.selectedMonitorId);
+  const selectedId  = useUiStore((s) => s.selectedMonitorId);
   const setSelectedId = useUiStore((s) => s.setSelectedMonitorId);
-  const { events, isRunning, progress, startConnectCheck } = useRealtimeTest('connect');
+  const { events, isRunning, progress, error, startConnectCheck } = useRealtimeTest('connect');
 
   const [form, setForm] = useState({
     name: '',
@@ -27,14 +35,18 @@ export default function ConnectPage() {
 
   const checksQuery = useQuery({
     queryKey: ['connect', 'checks', selectedId],
-    queryFn: () => api.get<{ data: ConnectCheckResult[] }>(`/connect/monitors/${selectedId}/checks`),
+    queryFn: () =>
+      api.get<{ data: ConnectCheckResult[] }>(`/connect/monitors/${selectedId}/checks`),
     enabled: selectedId !== null,
     refetchInterval: isRunning ? 2000 : false,
   });
 
   const transcriptsQuery = useQuery({
     queryKey: ['mongodb', 'transcripts', 'connect', selectedId],
-    queryFn: () => api.get<{ data: Transcript[] }>(`/mongodb/transcripts?module=connect&reference_id=${selectedId}`),
+    queryFn: () =>
+      api.get<{ data: Transcript[] }>(
+        `/mongodb/transcripts?module=connect&reference_id=${selectedId}`,
+      ),
     enabled: selectedId !== null,
     refetchInterval: isRunning ? 1500 : false,
   });
@@ -47,12 +59,16 @@ export default function ConnectPage() {
     },
   });
 
+  // AC-C02: cache invalidation in finally so it runs even on error
   const handleRunCheck = async (monitorId: number) => {
     setSelectedId(monitorId);
-    await startConnectCheck(monitorId);
-    queryClient.invalidateQueries({ queryKey: ['connect'] });
-    queryClient.invalidateQueries({ queryKey: ['mongodb'] });
-    queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    try {
+      await startConnectCheck(monitorId);
+    } finally {
+      queryClient.invalidateQueries({ queryKey: ['connect'] });
+      queryClient.invalidateQueries({ queryKey: ['mongodb'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    }
   };
 
   const handleSubmit = (e: FormEvent) => {
@@ -67,27 +83,55 @@ export default function ConnectPage() {
         <p>TFN reachability testing with live MongoDB event streaming</p>
       </header>
 
+      {/* AC-C02: SSE error banner */}
+      {error && (
+        <p role="alert" style={{ color: 'var(--danger)', marginBottom: '1rem' }}>
+          {error}
+        </p>
+      )}
+
       <section className="card" style={{ marginBottom: '1.5rem' }}>
         <div className="card-header">
           <strong>Add TFN Monitor</strong>
         </div>
         <form onSubmit={handleSubmit} style={{ padding: '1.25rem' }}>
           <div className="form-grid">
+            {/* AC-C02: htmlFor / id pairs for screen-reader association */}
             <div className="form-group">
-              <label>Monitor Name</label>
-              <input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+              <label htmlFor="conn-name">Monitor Name</label>
+              <input
+                id="conn-name"
+                required
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+              />
             </div>
             <div className="form-group">
-              <label>Toll-Free Number</label>
-              <input required value={form.toll_free_number} onChange={(e) => setForm({ ...form, toll_free_number: e.target.value })} />
+              <label htmlFor="conn-tfn">Toll-Free Number</label>
+              <input
+                id="conn-tfn"
+                required
+                value={form.toll_free_number}
+                onChange={(e) => setForm({ ...form, toll_free_number: e.target.value })}
+              />
             </div>
             <div className="form-group">
-              <label>Country</label>
-              <input required value={form.country_code} onChange={(e) => setForm({ ...form, country_code: e.target.value })} />
+              <label htmlFor="conn-country">Country</label>
+              <input
+                id="conn-country"
+                required
+                value={form.country_code}
+                onChange={(e) => setForm({ ...form, country_code: e.target.value })}
+              />
             </div>
             <div className="form-group">
-              <label>Carrier</label>
-              <input value={form.carrier} onChange={(e) => setForm({ ...form, carrier: e.target.value })} placeholder="Verizon" />
+              <label htmlFor="conn-carrier">Carrier</label>
+              <input
+                id="conn-carrier"
+                value={form.carrier}
+                onChange={(e) => setForm({ ...form, carrier: e.target.value })}
+                placeholder="Verizon"
+              />
             </div>
           </div>
           <button type="submit" className="btn btn-primary" disabled={createMutation.isPending}>
@@ -107,6 +151,9 @@ export default function ConnectPage() {
           </div>
           {monitorsQuery.isLoading ? (
             <div className="empty">Loading…</div>
+          ) : monitorsQuery.isError ? (
+            /* AC-C02: render error state instead of silent empty table */
+            <div className="empty" style={{ color: 'var(--danger)' }}>Failed to load monitors.</div>
           ) : (
             <table>
               <thead>
@@ -133,10 +180,12 @@ export default function ConnectPage() {
                     <td style={{ fontVariantNumeric: 'tabular-nums' }}>{m.reachability_pct}%</td>
                     <td><span className={`badge badge-${m.status}`}>{m.status}</span></td>
                     <td>
+                      {/* AC-C02: void prevents floating-Promise warning; aria-label for screen readers */}
                       <button
                         className="btn btn-sm btn-secondary"
+                        aria-label={`Run reachability test for ${m.name}`}
                         disabled={isRunning}
-                        onClick={(e) => { e.stopPropagation(); handleRunCheck(m.id); }}
+                        onClick={(e) => { e.stopPropagation(); void handleRunCheck(m.id); }}
                       >
                         {isRunning && selectedId === m.id ? 'Testing…' : 'Run Test'}
                       </button>
@@ -152,7 +201,12 @@ export default function ConnectPage() {
           <div className="card-header">
             <strong>Check History</strong>
             {selectedId && (
-              <button className="btn btn-sm btn-primary" disabled={isRunning} onClick={() => handleRunCheck(selectedId)}>
+              <button
+                className="btn btn-sm btn-primary"
+                aria-label="Run reachability test for selected monitor"
+                disabled={isRunning}
+                onClick={() => { void handleRunCheck(selectedId); }}
+              >
                 Run Test
               </button>
             )}

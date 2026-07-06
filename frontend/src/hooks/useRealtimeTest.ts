@@ -7,10 +7,18 @@ interface StartResponse {
   message: string;
 }
 
+/**
+ * AC-C02 — Improvements:
+ *   - Added `error` state; exposed from hook return.
+ *   - source.onerror sets error state with a user-readable message.
+ *   - reset() clears the error state.
+ *   - source.onmessage guards JSON.parse in try/catch.
+ */
 export function useRealtimeTest(module: 'discovery' | 'connect') {
-  const [events, setEvents] = useState<TestEvent[]>([]);
+  const [events, setEvents]     = useState<TestEvent[]>([]);
   const [isRunning, setIsRunning] = useState(false);
-  const [progress, setProgress] = useState(0);
+  const [progress, setProgress]   = useState(0);
+  const [error, setError]         = useState<string | null>(null);
   const sourceRef = useRef<EventSource | null>(null);
 
   const cleanup = useCallback(() => {
@@ -25,6 +33,7 @@ export function useRealtimeTest(module: 'discovery' | 'connect') {
     setEvents([]);
     setIsRunning(true);
     setProgress(0);
+    setError(null);
 
     const path = module === 'discovery'
       ? `/discovery/jobs/${resourceId}/stream?session_id=${sessionId}`
@@ -34,7 +43,14 @@ export function useRealtimeTest(module: 'discovery' | 'connect') {
     sourceRef.current = source;
 
     source.onmessage = (msg) => {
-      const doc = JSON.parse(msg.data) as TestEvent;
+      let doc: TestEvent;
+      try {
+        doc = JSON.parse(msg.data) as TestEvent;
+      } catch {
+        // Malformed frame — skip silently
+        return;
+      }
+
       setEvents((prev) => [...prev, doc]);
 
       const evt = doc.event;
@@ -47,8 +63,10 @@ export function useRealtimeTest(module: 'discovery' | 'connect') {
       }
     };
 
+    // AC-C02: surface SSE connection errors in UI
     source.onerror = () => {
       setIsRunning(false);
+      setError('Stream connection lost.');
       cleanup();
     };
   }, [module, cleanup]);
@@ -70,12 +88,14 @@ export function useRealtimeTest(module: 'discovery' | 'connect') {
     setEvents([]);
     setIsRunning(false);
     setProgress(0);
+    setError(null);
   }, [cleanup]);
 
   return {
     events,
     isRunning,
     progress,
+    error,
     startDiscovery,
     startConnectCheck,
     reset,
