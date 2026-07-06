@@ -6,33 +6,47 @@ use App\Http\Controllers\Controller;
 use App\Models\ConnectMonitor;
 use App\Models\DiscoveryJob;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Cache;
 
+/**
+ * AC-C01 — Wrap all 7 DB aggregation queries in a 30-second Cache::remember block.
+ */
 class DashboardController extends Controller
 {
+    /** Cache TTL in seconds. */
+    private const CACHE_TTL = 30;
+
+    /** Cache key for the KPI payload. */
+    private const CACHE_KEY = 'dashboard.kpis';
+
     public function kpis(): JsonResponse
     {
-        $discoveryTotal = DiscoveryJob::count();
-        $discoveryCompleted = DiscoveryJob::where('status', 'completed')->count();
-        $connectMonitors = ConnectMonitor::count();
-        $avgReachability = ConnectMonitor::avg('reachability_pct') ?? 0;
-        $alerts = ConnectMonitor::where('status', 'alert')->count();
+        $data = Cache::remember(self::CACHE_KEY, self::CACHE_TTL, static function (): array {
+            $discoveryTotal     = DiscoveryJob::count();
+            $discoveryCompleted = DiscoveryJob::where('status', 'completed')->count();
+            $avgReachability    = ConnectMonitor::avg('reachability_pct') ?? 0;
+            $alerts             = ConnectMonitor::where('status', 'alert')->count();
 
-        return response()->json([
-            'availability' => [
-                'ivr_availability_pct' => $discoveryTotal > 0
-                    ? round(($discoveryCompleted / $discoveryTotal) * 100, 1)
-                    : 0,
-                'number_reachability_pct' => round((float) $avgReachability, 1),
-                'call_success_rate_pct' => 94.2,
-                'transfer_success_rate_pct' => 97.8,
-            ],
-            'operational' => [
-                'active_discovery_jobs' => DiscoveryJob::where('status', 'running')->count(),
-                'active_connect_monitors' => ConnectMonitor::where('status', 'active')->count(),
-                'open_alerts' => $alerts,
-                'countries_monitored' => ConnectMonitor::distinct('country_code')->count('country_code'),
-            ],
-            'modules' => ['discovery', 'connect'],
-        ]);
+            return [
+                'availability' => [
+                    'ivr_availability_pct'    => $discoveryTotal > 0
+                        ? round(($discoveryCompleted / $discoveryTotal) * 100, 1)
+                        : 0,
+                    'number_reachability_pct' => round((float) $avgReachability, 1),
+                    // TODO: replace with real computed values when call-result data is available.
+                    'call_success_rate_pct'     => 94.2,
+                    'transfer_success_rate_pct' => 97.8,
+                ],
+                'operational' => [
+                    'active_discovery_jobs'   => DiscoveryJob::where('status', 'running')->count(),
+                    'active_connect_monitors' => ConnectMonitor::where('status', 'active')->count(),
+                    'open_alerts'             => $alerts,
+                    'countries_monitored'     => ConnectMonitor::distinct('country_code')->count('country_code'),
+                ],
+                'modules' => ['discovery', 'connect'],
+            ];
+        });
+
+        return response()->json($data);
     }
 }

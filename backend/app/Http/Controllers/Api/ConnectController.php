@@ -6,15 +6,20 @@ use App\Http\Controllers\Controller;
 use App\Models\ConnectCheckResult;
 use App\Models\ConnectMonitor;
 use App\Services\MongoService;
+use App\Services\ReachabilityService;
 use App\Services\RealTimeTestService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
+/**
+ * AC-A01 — delegates reachability calculation to ReachabilityService.
+ */
 class ConnectController extends Controller
 {
     public function __construct(
         private readonly MongoService $mongo,
-        private readonly RealTimeTestService $realtime
+        private readonly RealTimeTestService $realtime,
+        private readonly ReachabilityService $reachability
     ) {}
 
     public function index(): JsonResponse
@@ -27,15 +32,15 @@ class ConnectController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'name' => 'required|string|max:255',
+            'name'             => 'required|string|max:255',
             'toll_free_number' => 'required|string|max:50',
-            'country_code' => 'required|string|max:5',
-            'carrier' => 'nullable|string|max:100',
+            'country_code'     => 'required|string|max:5',
+            'carrier'          => 'nullable|string|max:100',
         ]);
 
         $monitor = ConnectMonitor::create([
             ...$validated,
-            'status' => 'active',
+            'status'           => 'active',
             'reachability_pct' => 100.0,
         ]);
 
@@ -48,7 +53,7 @@ class ConnectController extends Controller
             ->findOrFail($id);
 
         return response()->json([
-            'data' => $monitor,
+            'data'        => $monitor,
             'transcripts' => $this->mongo->getTranscripts('connect', $id),
             'diagnostics' => $this->mongo->getDiagnostics('connect', $id),
         ]);
@@ -57,29 +62,25 @@ class ConnectController extends Controller
     public function checks(int $id): JsonResponse
     {
         $monitor = ConnectMonitor::findOrFail($id);
-        $checks = ConnectCheckResult::where('connect_monitor_id', $id)
+        $checks  = ConnectCheckResult::where('connect_monitor_id', $id)
             ->orderByDesc('checked_at')
             ->limit(50)
             ->get();
 
-        // Duplicate reachability calculation block (also in RealTimeTestService / dev-api realtime.js)
-        $recentChecks = ConnectCheckResult::where('connect_monitor_id', $id)
+        // AC-A01: delegate to ReachabilityService
+        $recent          = ConnectCheckResult::where('connect_monitor_id', $id)
             ->orderByDesc('checked_at')
-            ->limit(20)
+            ->limit(ReachabilityService::WINDOW)
             ->get();
-
-        $successRate = $recentChecks->count() > 0
-            ? ($recentChecks->where('reachable', true)->count() / $recentChecks->count()) * 100
-            : 100;
-
-        $computedStatus = $successRate < 90 ? 'alert' : 'active';
+        $successRate     = $this->reachability->computeRate($recent);
+        $computedStatus  = $this->reachability->statusFromRate($successRate);
 
         return response()->json([
-            'monitor' => $monitor->only(['id', 'name', 'toll_free_number', 'country_code']),
-            'data' => $checks,
+            'monitor'  => $monitor->only(['id', 'name', 'toll_free_number', 'country_code']),
+            'data'     => $checks,
             'computed' => [
-                'reachability_pct' => round($successRate, 2),
-                'status' => $computedStatus,
+                'reachability_pct' => $successRate,
+                'status'           => $computedStatus,
             ],
         ]);
     }
@@ -96,7 +97,7 @@ class ConnectController extends Controller
 
         return response()->json([
             'session_id' => $sessionId,
-            'message' => 'Connect test started — connect to stream endpoint',
+            'message'    => 'Connect test started — connect to stream endpoint',
         ]);
     }
 }

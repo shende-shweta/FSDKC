@@ -7,8 +7,13 @@ use App\Models\DiscoveryJob;
 use App\Models\DiscoveryNode;
 use App\Services\MongoService;
 use App\Services\RealTimeTestService;
+use App\Support\IvrTreeBuilder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+
+/**
+ * AC-A02 — delegates IVR tree construction to IvrTreeBuilder.
+ */
 class DiscoveryController extends Controller
 {
     public function __construct(
@@ -26,15 +31,16 @@ class DiscoveryController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'name' => 'required|string|max:255',
+            'name'         => 'required|string|max:255',
             'phone_number' => 'required|string|max:50',
             'country_code' => 'required|string|max:5',
-            'languages' => 'array',
+            'languages'    => 'array',
+            'languages.*'  => 'string|max:10',
         ]);
 
         $job = DiscoveryJob::create([
             ...$validated,
-            'status' => 'pending',
+            'status'    => 'pending',
             'languages' => $validated['languages'] ?? ['en'],
         ]);
 
@@ -46,7 +52,7 @@ class DiscoveryController extends Controller
         $job = DiscoveryJob::with('nodes')->findOrFail($id);
 
         return response()->json([
-            'data' => $job,
+            'data'        => $job,
             'transcripts' => $this->mongo->getTranscripts('discovery', $id),
             'diagnostics' => $this->mongo->getDiagnostics('discovery', $id),
         ]);
@@ -54,13 +60,14 @@ class DiscoveryController extends Controller
 
     public function tree(int $id): JsonResponse
     {
-        $job = DiscoveryJob::findOrFail($id);
+        $job   = DiscoveryJob::findOrFail($id);
         $nodes = DiscoveryNode::where('discovery_job_id', $id)->get();
 
         return response()->json([
-            'job_id' => $job->id,
+            'job_id'   => $job->id,
             'job_name' => $job->name,
-            'tree' => $this->buildTree($nodes),
+            // AC-A02: delegate to shared IvrTreeBuilder (removed private buildTree)
+            'tree'     => IvrTreeBuilder::build($nodes),
         ]);
     }
 
@@ -80,23 +87,7 @@ class DiscoveryController extends Controller
 
         return response()->json([
             'session_id' => $sessionId,
-            'message' => 'Discovery test started — connect to stream endpoint',
+            'message'    => 'Discovery test started — connect to stream endpoint',
         ]);
-    }
-
-    private function buildTree($nodes, ?int $parentId = null): array
-    {
-        return $nodes
-            ->where('parent_id', $parentId)
-            ->map(fn (DiscoveryNode $node) => [
-                'id' => $node->id,
-                'prompt_text' => $node->prompt_text,
-                'dtmf_option' => $node->dtmf_option,
-                'node_type' => $node->node_type,
-                'depth' => $node->depth,
-                'children' => $this->buildTree($nodes, $node->id),
-            ])
-            ->values()
-            ->all();
     }
 }
