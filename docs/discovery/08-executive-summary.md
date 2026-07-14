@@ -1,17 +1,18 @@
 # Discovery Executive Summary
 
-**Project:** discovery-14 July · **Generated:** 14/07/2026, 15:49:49
+**Project:** discovery-14 July · **Generated:** 14/07/2026, 15:50:12
 
 > **Executive Summary**
 >
-> This report consolidates the overall ratings, key findings, and recommended actions from the 2 discovery analyses run across this codebase (frontend and backend). Each section below reproduces that analysis's executive view; full evidence and diagrams live in the individual reports.
+> This report consolidates the overall ratings, key findings, and recommended actions from the 3 discovery analyses run across this codebase (frontend and backend). Each section below reproduces that analysis's executive view; full evidence and diagrams live in the individual reports.
 
 ## Portfolio Overview
 
 | # | Analysis | Overall Rating | Hotspot Score |
 |---|---|---|---|
 | 1 | Architecture & Design Analysis | <span class="rating rating-high-risk">High Risk</span> | — |
-| 2 | Technical Debt | <span class="rating rating-moderate">Moderate</span> | — |
+| 2 | Testing & Quality Assurance Analysis | <span class="rating rating-high-risk">High Risk</span> | — |
+| 3 | Technical Debt | <span class="rating rating-moderate">Moderate</span> | — |
 
 ---
 
@@ -67,7 +68,48 @@ The complete report has been saved to `docs/discovery/01-architecture-design.md`
 
 ---
 
-## 2. Technical Debt
+## 2. Testing & Quality Assurance Analysis
+
+<div class="overall-rating overall-rating--high-risk"><div class="overall-rating-label">Overall Codebase Rating — Testing &amp; Quality Assurance</div><div class="overall-rating-value">High Risk</div><div class="overall-rating-note">Driven by complete absence of tests, untested critical business logic, and no CI test gates.</div></div>
+
+> **Executive Summary**
+>
+> The multi-agent web application has zero automated testing infrastructure across both frontend and backend components, representing a critical quality assurance gap. With 62 React components, 77 JavaScript modules handling authentication, API integrations, and business logic, and multiple Node.js microservices, the codebase operates without any safety net against regressions. The most concerning aspect is that mission-critical functionality like agent execution, Jira integration, authentication flows, and workflow orchestration ships entirely untested to production. While CI exists for the cursor-agent-bridge subdirectory, the main application has no test gates, no coverage measurement, and no contract validation for its extensive API surface.
+
+## 5.1 Benchmark Ratings Summary
+
+| # | Hotspot | Primary KPI | <span class="rating rating-good">Good</span> | <span class="rating rating-moderate">Moderate</span> | <span class="rating rating-high-risk">High Risk</span> | Measured | Rating |
+|---|---|---|---|---|---|---|---|
+| H1 | Untested Critical Logic | Critical modules with zero tests | 0 | 1–3 | >3 | 18 | <span class="rating rating-high-risk">High Risk</span> |
+| H2 | Low Test Coverage | Overall coverage % | >80% | 50–80% | <50% | 0% | <span class="rating rating-high-risk">High Risk</span> |
+| H3 | Missing Integration Tests | Boundaries covered % | >70% | 30–70% | <30% | 0% | <span class="rating rating-high-risk">High Risk</span> |
+| H4 | Missing Contract Tests | APIs with contract tests % | >80% | 40–80% | <40% | 0% | <span class="rating rating-high-risk">High Risk</span> |
+| H5 | Flaky / Skipped Tests | Skipped/flaky test count | 0 | 1–5 | >5 | 0 | <span class="rating rating-good">Good</span> |
+| H6 | No CI Test Gate | Tests enforced in CI | Required gate | Runs, not required | No CI test run | No CI test run | <span class="rating rating-high-risk">High Risk</span> |
+
+## 5.4 Actions Required
+
+| Hotspot | Action | Rating | Priority |
+|---|---|---|---|
+| H1. Untested Critical Logic | Create unit and integration tests for 18 critical modules starting with authentication, agent execution, and Jira integration | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-critical">Critical</span> |
+| H2. Low Test Coverage | Install Vitest test framework, React Testing Library, and establish 75% coverage baseline with reporting | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-critical">Critical</span> |
+| H3. Missing Integration Tests | Build API contract tests for microservice boundaries and external integrations (Jira, GitHub, database) | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-critical">Critical</span> |
+| H4. Missing Contract Tests | Implement JSON Schema validation and consumer-driven contract tests for all API endpoints and external integrations | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-critical">Critical</span> |
+| H6. No CI Test Gate | Create comprehensive GitHub Actions workflow with lint, test, coverage, and security gates as PR requirements | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-critical">Critical</span> |
+
+## 5.5 Expected Outcomes
+
+- **Regression Prevention**: Automated test suite catches breaking changes before production deployment, preventing customer-impacting bugs in critical workflows
+- **Development Velocity**: Developers can refactor and add features confidently with comprehensive test coverage providing immediate feedback on impacts
+- **Quality Assurance**: Systematic coverage of authentication, agent execution, integrations, and payment flows ensures business-critical paths remain stable
+- **Production Reliability**: Contract tests prevent API breaking changes from propagating, while integration tests validate service boundaries under various conditions
+- **Team Scalability**: New team members can contribute safely with test-driven development practices, reducing onboarding risk and knowledge transfer burden
+
+The complete report has been saved to `docs/discovery/05-testing-and-quality-assurance.md` and is ready for the orchestration UI to convert to PDF format.
+
+---
+
+## 3. Technical Debt
 
 <div class="overall-rating overall-rating--moderate"><div class="overall-rating-label">Overall Codebase Rating — Technical Debt &amp; Agentic Readiness</div><div class="overall-rating-value">Moderate</div><div class="overall-rating-note">Driven by High Risk Development Environment and Database Usage issues despite strong AI tooling foundation.</div></div>
 
