@@ -1,16 +1,17 @@
 # Discovery Executive Summary
 
-**Project:** discovery-14 July · **Generated:** 14/07/2026, 15:24:49
+**Project:** discovery-14 July · **Generated:** 14/07/2026, 15:49:49
 
 > **Executive Summary**
 >
-> This report consolidates the overall ratings, key findings, and recommended actions from the 1 discovery analysis run across this codebase (frontend and backend). Each section below reproduces that analysis's executive view; full evidence and diagrams live in the individual reports.
+> This report consolidates the overall ratings, key findings, and recommended actions from the 2 discovery analyses run across this codebase (frontend and backend). Each section below reproduces that analysis's executive view; full evidence and diagrams live in the individual reports.
 
 ## Portfolio Overview
 
 | # | Analysis | Overall Rating | Hotspot Score |
 |---|---|---|---|
 | 1 | Architecture & Design Analysis | <span class="rating rating-high-risk">High Risk</span> | — |
+| 2 | Technical Debt | <span class="rating rating-moderate">Moderate</span> | — |
 
 ---
 
@@ -63,3 +64,36 @@
 - **System Resilience**: Centralized error handling and data fetching strategies in frontend service layer improve reliability and user experience
 
 The complete report has been saved to `docs/discovery/01-architecture-design.md` and is ready for the orchestration UI to convert to PDF format.
+
+---
+
+## 2. Technical Debt
+
+<div class="overall-rating overall-rating--moderate"><div class="overall-rating-label">Overall Codebase Rating — Technical Debt &amp; Agentic Readiness</div><div class="overall-rating-value">Moderate</div><div class="overall-rating-note">Driven by High Risk Development Environment and Database Usage issues despite strong AI tooling foundation.</div></div>
+
+> **Executive Summary**
+>
+> The multi-agent web UI demonstrates moderate technical debt with mixed readiness for agentic harness adoption. The repository shows strong CI/CD foundations with comprehensive GitHub Actions workflows, proper dependency management through lock files, and extensive AI tooling infrastructure via .cursor/ and .kiro/ directories. However, critical gaps exist in development environment reproducibility (missing containerization for local dev), database schema constraints, and code style enforcement. The codebase structure suggests high agentic potential with enumerable React components and well-defined agent workflows, but production readiness requires addressing environment fragility and database integrity issues.
+
+## Readiness Benchmark Ratings
+
+| # | Dimension | <span class="rating rating-good">Good</span> | <span class="rating rating-moderate">Moderate</span> | <span class="rating rating-high-risk">High Risk</span> | Measured | Rating |
+|---|---|---|---|---|---|---|
+| D1 | Code Repository Health | all checks pass | 1–2 gaps | 3+ gaps / no CI | CI present, gitignore complete, lock files committed | <span class="rating rating-good">Good</span> |
+| D2 | Third-Party Tool Usage | mostly wired & current | some unused/unwired | many unused/unmaintained | 8 of 12 core packages properly wired, 4 unused | <span class="rating rating-moderate">Moderate</span> |
+| D3 | AI Tool / Agentic Readiness | ready | partial | not ready | Extensive .cursor/.kiro infrastructure, enumerable components | <span class="rating rating-good">Good</span> |
+| D4 | Database Usage | sound | some gaps | no constraints / shared flat schema | Mongoose schemas without foreign keys, no migration strategy | <span class="rating rating-high-risk">High Risk</span> |
+| D5 | Development Environment | reproducible | partial | manual / fragile | .env.example exists but no containerization, no enforced linting | <span class="rating rating-high-risk">High Risk</span> |
+
+## 7.8 Actions Required
+
+| Gap | Action | Rating | Priority |
+|---|---|---|---|
+| Database schema integrity | Add foreign key constraints to Mongoose schemas, implement proper indexing strategy for tenant_id and connector_id relationships | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-critical">Critical</span> |
+| Database migration strategy | Create migration framework for schema versioning, implement rollback capabilities for destructive changes | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-critical">Critical</span> |
+| Development containerization | Create docker-compose.yml for local development, add devcontainer configuration for consistent environments | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-high">High</span> |
+| Code style enforcement | Add pre-commit hooks for eslint/prettier, integrate style checks into GitHub Actions CI workflow | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-high">High</span> |
+| Database domain separation | Separate tenant management, orchestration, and application databases to enable future service extraction | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-medium">Medium</span> |
+| Dead dependency cleanup | Remove unused packages (jspdf, html-to-image, nodemailer) or implement their intended functionality | <span class="rating rating-moderate">Moderate</span> | <span class="sev sev-low">Low</span> |
+
+The complete technical debt analysis has been saved to `docs/discovery/07-technical-debt.md` and is ready for the orchestration UI to convert to PDF format. This analysis reveals a codebase that is surprisingly well-prepared for agentic workflows due to its existing AI infrastructure, but requires critical attention to database integrity and development environment consistency before full marketplace readiness.
