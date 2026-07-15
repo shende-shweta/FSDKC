@@ -1,6 +1,6 @@
 # Discovery Executive Summary
 
-**Project:** discovery-14-July · **Generated:** 14/07/2026, 22:07:36
+**Project:** discovery-15july-01 · **Generated:** 15/07/2026, 19:47:53
 
 > **Executive Summary**
 >
@@ -11,9 +11,9 @@
 | # | Analysis | Overall Rating | Hotspot Score |
 |---|---|---|---|
 | 1 | Architecture & Design Analysis | <span class="rating rating-high-risk">High Risk</span> | — |
-| 2 | Code Quality & Complexity Analysis | <span class="rating rating-high-risk">High Risk</span> | 43 / 100 — Moderate |
+| 2 | Code Quality & Complexity Analysis | <span class="rating rating-high-risk">High Risk</span> | 45 / 100 — Moderate |
 | 3 | Frontend Modernization Analysis | <span class="rating rating-high-risk">High Risk</span> | — |
-| 4 | Testing & Quality Assurance Analysis | <span class="rating rating-high-risk">High Risk</span> | — |
+| 4 | Backend Modernization Analysis | <span class="rating rating-high-risk">High Risk</span> | — |
 
 ---
 
@@ -23,37 +23,37 @@
 
 > **Executive Summary**
 >
-> Analysis covered **backend** (15 PHP application files: 6 API controllers, 4 Eloquent models, 2 services, 0 repositories), **frontend** (15 TS/TSX/JSX source files across pages, components, hooks, and store), and **dev-api** (6 JS files mirroring 18 Laravel routes) from `shende-shweta/FSDKC@main` via GitHub REST. The Klearcom monorepo runs three parallel runtimes with no repository layer and thin service coverage. Backend layering is the dominant risk: **25 controller-to-model Eloquent access points** bypass application services, **54 persistence calls** occur outside any repository abstraction (32 Eloquent + 22 MongoDB delegations), and **8 cross-domain query sites** in `DashboardController` couple Discovery and Connect models without an anti-corruption layer. Four of five MariaDB tables lack domain-exclusive ownership (**80% shared-table coupling**), and Laravel + `dev-api` duplicate reachability KPI math, IVR `buildTree`, and dashboard aggregation in parallel. Frontend architecture is comparatively healthy (avg **81 LOC** per view component, centralized `api/client.ts`, max prop-drilling depth **1**), but one legacy class component lacks lifecycle cleanup. Overall verdict: **High Risk**, driven by H2, H3, H8, H9, and H10.
+> Analysis covered **backend** (15 PHP application files: 6 API controllers, 4 Eloquent models, 2 injectable services, 0 repositories), **frontend** (15 TS/TSX/JSX source files across pages, components, hooks, and store), and **dev-api** (6 JS files mirroring 18 Laravel routes) from `shende-shweta/FSDKC@main` via GitHub REST API (tree + raw content fetch). The Klearcom monorepo runs three parallel runtimes with no repository layer and thin service coverage. Backend layering is the dominant risk: **25 controller-to-model Eloquent access points** bypass application services, **71 persistence access points** occur outside any repository abstraction (32 Eloquent + 39 MongoDB/in-memory store delegations across Laravel and dev-api), and **8 cross-domain query sites** in `DashboardController::kpis` couple Discovery and Connect models without an anti-corruption layer. Four of five MariaDB tables lack domain-exclusive ownership (**80% shared-table coupling**), and Laravel + `dev-api` duplicate reachability KPI math, IVR `buildTree`, and dashboard aggregation in parallel. Frontend architecture is comparatively healthy (avg **86 LOC** per view component, centralized `api/client.ts`, max prop-drilling depth **2**), but one legacy class component lacks lifecycle cleanup. Overall verdict: **High Risk**, driven by H2, H3, H8, H9, and H10.
 
 ## 1.1 Benchmark Ratings Summary
-
-One row per hotspot. "Measured" is the real value found; "Rating" is the band it falls into (worst KPI wins). This table is the source for the Overall Codebase Rating banner above.
 
 | # | Hotspot | Primary KPI | <span class="rating rating-good">Good</span> | <span class="rating rating-moderate">Moderate</span> | <span class="rating rating-high-risk">High Risk</span> | Measured | Rating |
 |---|---|---|---|---|---|---|---|
 | H1 | Fat Controllers | Avg LOC per controller | <150 | 150–300 | >300 | 74 LOC avg | <span class="rating rating-good">Good</span> |
 | H2 | Missing Service Layer | Controllers accessing repos/models | <10 | 10–20 | >20 | 25 access points | <span class="rating rating-high-risk">High Risk</span> |
-| H3 | Missing Repository Pattern | Direct DB access points | <10 | 10–20 | >20 | 54 access points | <span class="rating rating-high-risk">High Risk</span> |
+| H3 | Missing Repository Pattern | Direct DB access points | <10 | 10–20 | >20 | 71 access points | <span class="rating rating-high-risk">High Risk</span> |
 | H4 | Circular Dependencies | Dependency cycles | 0 | 1–3 | >3 | 0 | <span class="rating rating-good">Good</span> |
-| H5 | Shared Utility Abuse | Utility files w/ business logic | 0 | 1–5 | >5 | 1 (`LegacyDataMapper`) | <span class="rating rating-moderate">Moderate</span> |
+| H5 | Shared Utility Abuse | Utility files w/ business logic | 0 | 1–5 | >5 | 4 (`extract` sites) | <span class="rating rating-moderate">Moderate</span> |
 | H6 | Direct SQL in Controllers | ORM compliance % | >90% | 60–90% | <60% | 100% ORM | <span class="rating rating-good">Good</span> |
-| H7 | God Classes | Classes >1000 LOC | 0 | 1–3 | >3 | 0 | <span class="rating rating-good">Good</span> |
+| H7 | God Classes | Classes >1000 LOC | 0 | 1–3 | >3 | 0 (max 276 LOC) | <span class="rating rating-good">Good</span> |
 | H8 | Domain Boundary Violations | Cross-domain access points | 0 | 1–5 | >5 | 8 | <span class="rating rating-high-risk">High Risk</span> |
 | H9 | Shared Database Coupling | Tables shared across domains | <10% | 10–30% | >30% | 80% (4/5 tables) | <span class="rating rating-high-risk">High Risk</span> |
-| F1 | Business Logic in Components | Avg LOC per component | <150 | 150–300 | >300 | 81 LOC avg | <span class="rating rating-good">Good</span> |
-| F2 | Missing Frontend Service/Data Layer | Components w/ inline API calls | <10 | 10–20 | >20 | 7 files | <span class="rating rating-good">Good</span> |
+| F1 | Business Logic in Components | Avg LOC per component | <150 | 150–300 | >300 | 86 LOC avg | <span class="rating rating-good">Good</span> |
+| F2 | Missing Frontend Service/Data Layer | Components w/ inline API calls | <10 | 10–20 | >20 | 0 inline fetch/axios | <span class="rating rating-good">Good</span> |
 | F3 | God / Oversized Components | Components >400 LOC | 0 | 1–3 | >3 | 0 | <span class="rating rating-good">Good</span> |
-| F4 | Prop Drilling / Global State Abuse | Max prop-drilling depth | ≤2 | 3–4 | >4 | 1 level | <span class="rating rating-good">Good</span> |
+| F4 | Prop Drilling / Global State Abuse | Max prop-drilling depth | ≤2 | 3–4 | >4 | 2 levels | <span class="rating rating-good">Good</span> |
 | F5 | Legacy / Inconsistent Component Patterns | Legacy-pattern components | 0 | 1–10 | >10 | 1 class component | <span class="rating rating-moderate">Moderate</span> |
 | H10 | Parallel API Runtimes (additional) | Duplicate API implementations across runtimes | 0 | 1 | ≥2 | 2 (Laravel + dev-api) | <span class="rating rating-high-risk">High Risk</span> |
+
+No additional hotspots beyond the standard set were observed beyond H10 (Parallel API Runtimes).
 
 ## 1.4 Actions Required
 
 | Hotspot | Action | Rating | Priority |
 |---|---|---|---|
 | H2 — Missing Service Layer | Introduce `ConnectMonitorService`, `DiscoveryJobService`, and `DashboardKpiService`; move all 25 controller model-access points into application services with constructor DI. | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-critical">Critical</span> |
-| H3 — Missing Repository Pattern | Create repository interfaces for all 4 Eloquent models and 3 MongoDB collections; route 54 persistence access points through injected repository implementations. | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-critical">Critical</span> |
-| H5 — Shared Utility Abuse | Replace `LegacyDataMapper` `extract()` pattern with typed DTO mappers; remove `extract($filters)` from `LegacyReportController`. | <span class="rating rating-moderate">Moderate</span> | <span class="sev sev-medium">Medium</span> |
+| H3 — Missing Repository Pattern | Create repository interfaces for all 4 Eloquent models and 3 MongoDB collections; route 71 persistence access points through injected repository implementations. | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-critical">Critical</span> |
+| H5 — Shared Utility Abuse | Replace `extract($filters)` with typed DTO mappers; extract shared `IvrTreeBuilder` from duplicated `buildTree` in `LegacyReportController`, `DiscoveryController`, and `dev-api/src/store.js`. | <span class="rating rating-moderate">Moderate</span> | <span class="sev sev-medium">Medium</span> |
 | H8 — Domain Boundary Violations | Split cross-domain access in `DashboardController` and `LegacyReportController`; enforce Discovery/Connect bounded contexts with published read APIs. | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-critical">Critical</span> |
 | H9 — Shared Database Coupling | Assign table ownership per domain in `docker/mariadb/init.sql`; introduce per-domain migration files and integration views for cross-domain KPIs. | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-critical">Critical</span> |
 | H10 — Parallel API Runtimes | Deprecate `dev-api` duplicate runtime; consolidate to Laravel API with Docker Compose for local dev, or generate dev-api from OpenAPI spec. | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-critical">Critical</span> |
@@ -69,46 +69,41 @@ One row per hotspot. "Measured" is the real value found; "Rating" is the band it
 
 ---
 
-**Deliverables saved:**
-- Full report: `target/docs/discovery/01-architecture-design.md` (577 lines — includes §1.2 evidence and §1.3 Mermaid diagrams)
-- Pipeline summary: `agent-runs/20260714T195315_s84t1f/01-architecture-design-summary.md`
-
----
-
 ## 2. Code Quality & Complexity Analysis
 
-<div class="overall-rating overall-rating--high-risk"><div class="overall-rating-label">Overall Codebase Rating — Code Quality &amp; Complexity</div><div class="overall-rating-value">High Risk</div><div class="overall-rating-note">Driven by High-Risk cyclomatic complexity in frontend page components (H1), oversized `ConnectPage` function (H3), cross-runtime business-logic duplication (H4), and parallel Laravel/dev-api workflow copies (H9).</div></div>
+<div class="overall-rating overall-rating--high-risk"><div class="overall-rating-label">Overall Codebase Rating — Code Quality &amp; Complexity</div><div class="overall-rating-value">High Risk</div><div class="overall-rating-note">Driven by High-Risk cyclomatic complexity in frontend page components (H1), oversized `ConnectPage` function (H3), cross-runtime business-logic duplication (H4), parallel Laravel/dev-api workflow copies (H9), and PHP `extract()` dynamic variables (H11).</div></div>
 
 > **Executive Summary**
 >
-> Analysis covered **backend** (13 PHP application files, 748 LOC), **frontend** (14 TS/TSX/JSX files, 874 LOC), and **dev-api** (6 JS files, 719 LOC) — **33 files / 2,341 LOC** total — from `shende-shweta/FSDKC@main` via GitHub REST and raw content fetch. No cyclomatic-complexity linter (`eslint-plugin-complexity`, `phpmd`, Sonar) is configured; metrics were derived by manual branch/loop counting. The dominant risks are **frontend page-level complexity** (`ConnectPage.tsx` cyclomatic complexity **35**, **201 LOC** single component) and **cross-runtime business-logic duplication** (~**12.4%** of codebase duplicated between Laravel and `dev-api` for KPI aggregation, realtime test orchestration, and IVR `buildTree`). No files exceed 1,000 LOC (largest: `dev-api/src/server.js` at 224 LOC). Git history is shallow (**3 commits**, single author `ksabai-gl` since June 2026), so churn and ownership signals are healthy but low-confidence. Overall verdict: **High Risk**, driven by H1, H3, H4, and H9.
+> Analysis covered **backend** (16 PHP application files, 807 SLOC), **frontend** (14 TS/TSX/JSX files, 874 SLOC), and **dev-api** (6 JS files, 720 SLOC) — **36 files / 2,401 SLOC** total — from `shende-shweta/FSDKC@main` via GitHub REST API (public tree + raw content + Commits API). No cyclomatic-complexity linter (`eslint-plugin-complexity`, `phpmd`, Sonar) is configured; metrics were derived by manual branch/loop counting on fetched source. The dominant risks are **frontend page-level complexity** (`ConnectPage.tsx` cyclomatic complexity **44**, **201 LOC** default-export function), **cross-runtime business-logic duplication** (~**13.2%** of codebase duplicated between Laravel and `dev-api` for KPI aggregation, realtime test orchestration, and IVR `buildTree`), and **three `extract()` dynamic-variable sites** in legacy PHP code. No files exceed 1,000 LOC (largest: `dev-api/src/server.js` at **224 SLOC**). Git history is shallow (**3 commits**, single author `ksabai-gl` since June 2026), so churn and ownership signals are healthy but low-confidence. Overall verdict: **High Risk**, driven by H1, H3, H4, H9, and H11.
 
 ## 2.1 Benchmark Ratings Summary
 
 | # | Hotspot | Primary KPI | <span class="rating rating-good">Good</span> | <span class="rating rating-moderate">Moderate</span> | <span class="rating rating-high-risk">High Risk</span> | Measured | Rating |
 |---|---|---|---|---|---|---|---|
-| H1 | High Cyclomatic Complexity | Max complexity per method | <10 | 10–20 | >20 | 35 (`ConnectPage`) | <span class="rating rating-high-risk">High Risk</span> |
+| H1 | High Cyclomatic Complexity | Max complexity per method | <10 | 10–20 | >20 | 44 (`ConnectPage`) | <span class="rating rating-high-risk">High Risk</span> |
 | H2 | Large Classes | Largest class LOC | <300 | 300–1000 | >1000 | 224 LOC (`dev-api/src/server.js`) | <span class="rating rating-good">Good</span> |
 | H3 | Large Functions | Largest function LOC | <50 | 50–200 | >200 | 201 LOC (`ConnectPage`) | <span class="rating rating-high-risk">High Risk</span> |
-| H4 | Business Logic Duplication | Duplicated business logic % | <5% | 5–10% | >10% | ~12.4% (~290 / 2,341 LOC) | <span class="rating rating-high-risk">High Risk</span> |
-| H5 | Duplicate Code (general) | Overall duplicate code % | <5% | 5–10% | >10% | ~7.7% (~180 / 2,341 LOC) | <span class="rating rating-moderate">Moderate</span> |
+| H4 | Business Logic Duplication | Duplicated business logic % | <5% | 5–10% | >10% | ~13.2% (~317 / 2,401 LOC) | <span class="rating rating-high-risk">High Risk</span> |
+| H5 | Duplicate Code (general) | Overall duplicate code % | <5% | 5–10% | >10% | ~8.6% (~206 / 2,401 LOC) | <span class="rating rating-moderate">Moderate</span> |
 | H6 | High Churn Areas | Monthly changes (top files) | <5 | 5–10 | >10 | 2 changes/mo (top app files) | <span class="rating rating-good">Good</span> |
-| H7 | Defect-Prone Files | Fix commits (hottest file) | 1–3 | 4–5 | >5 | 1 fix commit (`ConnectController.php`) | <span class="rating rating-good">Good</span> |
+| H7 | Defect-Prone Files | Fix commits (hottest file) | 1–3 | 4–5 | >5 | 1 fix commit (`frontend/src/App.tsx`) | <span class="rating rating-good">Good</span> |
 | H8 | Ownership Issues | Top-author ownership % | >80% | 60–80% | <60% | 100% (1 author / 3 commits) | <span class="rating rating-good">Good</span> |
-| H9 | Parallel Runtime Duplication (additional) | Duplicated workflow LOC across Laravel + dev-api / backend LOC | <5% | 5–15% | >15% | ~19.8% (~290 / 1,467 backend+dev-api LOC) | <span class="rating rating-high-risk">High Risk</span> |
+| H9 | Parallel Runtime Duplication (additional) | Duplicated workflow LOC across Laravel + dev-api / backend LOC | <5% | 5–15% | >15% | ~20.8% (~317 / 1,527 backend+dev-api LOC) | <span class="rating rating-high-risk">High Risk</span> |
 | H10 | God Page Components (additional) | Largest page component LOC (UI + data + realtime) | <150 | 150–300 | >300 | 208 LOC (`ConnectPage.tsx`) | <span class="rating rating-moderate">Moderate</span> |
+| H11 | PHP extract() Dynamic Variables (additional) | `extract()` call sites in application code | 0 | 1–2 | >2 | 3 (`LegacyReportController`, `LegacyDataMapper` ×2) | <span class="rating rating-high-risk">High Risk</span> |
 
 ### Hotspot Score breakdown
 
 | Component | Weight | Sub-score (0–100) | Weighted |
 |---|---|---|---|
-| Cyclomatic Complexity | 25% | 72 | 18.0 |
-| Code Churn | 25% | 12 | 3.0 |
-| Defect Density | 20% | 18 | 3.6 |
-| Class/Function Size | 15% | 68 | 10.2 |
+| Cyclomatic Complexity | 25% | 82 | 20.5 |
+| Code Churn | 25% | 10 | 2.5 |
+| Defect Density | 20% | 15 | 3.0 |
+| Class/Function Size | 15% | 75 | 11.25 |
 | Business Logic Duplication | 10% | 78 | 7.8 |
-| Developer Ownership Risk | 5% | 8 | 0.4 |
-| **Hotspot Score** | **100%** | | **43 / 100** |
+| Developer Ownership Risk | 5% | 5 | 0.25 |
+| **Hotspot Score** | **100%** | | **45 / 100** |
 
 ## 2.5 Actions Required
 
@@ -117,22 +112,18 @@ One row per hotspot. "Measured" is the real value found; "Rating" is the band it
 | H1 — High Cyclomatic Complexity | Extract `useModulePageQueries` hook; split `ConnectPage` and `DiscoveryPage` into ≤80 LOC sub-components; enable ESLint complexity rule (max 15) on `frontend/src/pages/`. | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-critical">Critical</span> |
 | H3 — Large Functions | Decompose `ConnectPage` (201 LOC) into `useConnectPageState.ts` + 3 presentational components; apply same pattern to `DiscoveryPage` (154 LOC). | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-high">High</span> |
 | H4 — Business Logic Duplication | Create `DashboardKpiCalculator` and shared test-step definitions in Laravel; remove duplicated KPI and realtime blocks from `dev-api/src/server.js` and `dev-api/src/realtime.js`. | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-critical">Critical</span> |
-| H5 — Duplicate Code | Extract `TreeBuilder` utility from three `buildTree` copies; add `jscpd`/`phpcpd` CI gate at 5% threshold. | <span class="rating rating-moderate">Moderate</span> | <span class="sev sev-medium">Medium</span> |
+| H5 — Duplicate Code | Extract `TreeBuilder` utility from four `buildTree` copies; add `jscpd`/`phpcpd` CI gate at 5% threshold. | <span class="rating rating-moderate">Moderate</span> | <span class="sev sev-medium">Medium</span> |
 | H9 — Parallel Runtime Duplication | Deprecate `dev-api` runtime or auto-generate from Laravel OpenAPI; add contract tests until removal. | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-critical">Critical</span> |
 | H10 — God Page Components | Introduce `ModulePageLayout`, `EntityForm`, and `TestSessionPanel` shared components; cap page files at 120 LOC. | <span class="rating rating-moderate">Moderate</span> | <span class="sev sev-medium">Medium</span> |
+| H11 — PHP extract() Dynamic Variables | Replace `extract($filters)` with typed `CarrierSummaryFilter` DTO; refactor `LegacyDataMapper` to explicit key access; add PHPStan `extract()` ban. | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-high">High</span> |
 
 ## 2.6 Expected Outcomes
 
-- **Lower defect rate on UI changes:** Splitting `ConnectPage`/`DiscoveryPage` and extracting shared hooks reduces cyclomatic complexity from 35 to a testable target of <15 per function.
-- **Single source of truth for KPIs and test pipelines:** Consolidating dashboard and realtime logic in Laravel eliminates the ~12% duplicated business-rule surface between production and `dev-api`.
-- **Safer refactors:** Extracting `TreeBuilder` and domain services lets IVR tree and reachability changes propagate from one module instead of three `buildTree` copies.
+- **Lower defect rate on UI changes:** Splitting `ConnectPage`/`DiscoveryPage` and extracting shared hooks reduces cyclomatic complexity from 44 to a testable target of <15 per function.
+- **Single source of truth for KPIs and test pipelines:** Consolidating dashboard and realtime logic in Laravel eliminates the ~13% duplicated business-rule surface between production and `dev-api`.
+- **Safer refactors:** Extracting `TreeBuilder` and domain services lets IVR tree and reachability changes propagate from one module instead of four `buildTree` copies.
+- **Eliminated dynamic-variable risk:** Replacing `extract()` with typed DTOs enables PHPStan static analysis and prevents variable-injection bugs in legacy report endpoints.
 - **Faster reviews:** Smaller page components and a complexity lint gate keep new features from re-expanding god components.
-- **Clearer ownership signals:** As contributor count grows, shallow-history baselines will be replaced by meaningful churn metrics already instrumented in this report template.
-
----
-
-**Full report saved:** `target/docs/discovery/02-code-quality-complexity.md`  
-**Pipeline summary:** `agent-runs/20260714T214921_12dnvv/02-code-quality-complexity-summary.md`
 
 ---
 
@@ -142,7 +133,7 @@ One row per hotspot. "Measured" is the real value found; "Rating" is the band it
 
 > **Executive Summary**
 >
-> The Klearcom frontend is a compact React 19 / Vite 6 / TypeScript SPA with 14 source files (8 view components across `pages/` and `components/`). The stack is largely modern — hooks, TanStack React Query, Zustand, and React Router dominate data flow — but two domain pages (`ConnectPage.tsx`, `DiscoveryPage.tsx`) duplicate a shared workbench shell (entity form, live feed, two-column grid, transcript panel), inflating UI duplication to 25%. A legacy class component (`LegacyMonitorPoller.jsx`) lacks `componentWillUnmount` cleanup and leaks intervals, and two orphan legacy modules (`LegacyMonitorPoller`, `LegacyDashboardWidget`) coexist with the React Query stack. Six of eight view components read shared global state (Zustand store, React Query cache, or the singleton `api` client), 30 inline `style={{}}` occurrences bypass the CSS token system in `index.css`, and zero `aria-*` / `role` attributes were found across all view components. Overall verdict: **High Risk**, driven by H1 (UI duplication), H4 (global state coupling), H6 (inline styles), and H7 (missing accessibility).
+> Analysis covered **14 frontend source files** (8 view components across `pages/` and `components/`) from `shende-shweta/FSDKC@main` via GitHub REST API (tree + raw content fetch). The Klearcom SPA is predominantly modern — function components, TanStack React Query v5, Zustand v5, and React Router v7 — with a centralized `api/client.ts` and reusable `useRealtimeTest` hook. However, **ConnectPage.tsx** and **DiscoveryPage.tsx** duplicate an identical workbench shell (entity form, live feed, two-column grid, transcript panel), inflating UI duplication to **25%**. Six of eight view components depend on shared global state (Zustand, React Query cache, or the singleton `api` client), and **30 inline `style={{}}` occurrences** bypass the CSS token system in `index.css`. One legacy class component (`LegacyMonitorPoller.jsx`) lacks `componentWillUnmount` cleanup and leaks intervals; two orphan legacy modules coexist with the React Query stack. Zero `aria-*` / `role` attributes were found across all view components. Overall verdict: **High Risk**, driven by H1 (UI duplication), H4 (global state coupling), H6 (inline styles), and H7 (missing accessibility).
 
 ## 3.1 Benchmark Ratings Summary
 
@@ -152,7 +143,7 @@ One row per hotspot. "Measured" is the real value found; "Rating" is the band it
 | H2 | Legacy Class-Based Components | Modern component adoption % | >90% | 70–90% | <70% | 87.5% (7/8) | <span class="rating rating-moderate">Moderate</span> |
 | H3 | Massive Components | Largest component LOC | <200 | 200–500 | >500 | 222 (`ConnectPage.tsx`) | <span class="rating rating-moderate">Moderate</span> |
 | H4 | Global State Dependencies | Components reading global state % | <30% | 30–60% | >60% | 75.0% (6/8) | <span class="rating rating-high-risk">High Risk</span> |
-| H5 | Complex State Management | Max prop-drilling depth | <3 | 3–5 | >5 | 1 level | <span class="rating rating-good">Good</span> |
+| H5 | Complex State Management | Max prop-drilling depth | <3 | 3–5 | >5 | 2 levels | <span class="rating rating-good">Good</span> |
 | H6 | Inline Styles / No Design Tokens (additional) | Total `style={{}}` occurrences (target <10) | <10 | 10–20 | >20 | 30 across 7 files | <span class="rating rating-high-risk">High Risk</span> |
 | H7 | Missing Accessibility Roles (additional) | Components with `aria-*` or `role` (target >80%) | >80% | 50–80% | <50% | 0% (0/8) | <span class="rating rating-high-risk">High Risk</span> |
 
@@ -160,8 +151,8 @@ One row per hotspot. "Measured" is the real value found; "Rating" is the band it
 
 | Hotspot | Action | Rating | Priority |
 |---|---|---|---|
-| H1 — UI Component Duplication | Extract `DomainWorkbenchPage`, `TranscriptPanel`, and `EntityFormCard` from `ConnectPage.tsx` and `DiscoveryPage.tsx`; reduce duplicate shell to domain hooks only. | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-critical">Critical</span> |
-| H2 — Legacy Class-Based Components | Convert `LegacyMonitorPoller.jsx` to `useMonitorReachability` hook; delete or migrate `LegacyDashboardWidget.tsx` to React Query. | <span class="rating rating-moderate">Moderate</span> | <span class="sev sev-medium">Medium</span> |
+| H1 — UI Component Duplication | Extract `DomainWorkbenchPage`, `EntityFormCard`, and `TranscriptPanel` from `ConnectPage.tsx` and `DiscoveryPage.tsx`; reduce duplicate shell to domain hooks only. | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-critical">Critical</span> |
+| H2 — Legacy Class-Based Components | Convert `LegacyMonitorPoller.jsx` to `useMonitorReachability` hook; migrate `LegacyDashboardWidget.tsx` to React Query or delete both orphan modules. | <span class="rating rating-moderate">Moderate</span> | <span class="sev sev-medium">Medium</span> |
 | H3 — Massive Components | Split `ConnectPage.tsx` (222 LOC) and `DiscoveryPage.tsx` (176 LOC) into container hooks + presentational sub-components; target <150 LOC per page. | <span class="rating rating-moderate">Moderate</span> | <span class="sev sev-medium">Medium</span> |
 | H4 — Global State Dependencies | Replace `useUiStore` selection with URL search params; add `frontend/src/api/queryKeys.ts`; scope query invalidation to domain keys. | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-high">High</span> |
 | H6 — Inline Styles | Add CSS utility classes to `index.css`; migrate 30 inline `style={{}}` occurrences (18 in domain pages) to token-based classes. | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-high">High</span> |
@@ -177,55 +168,51 @@ One row per hotspot. "Measured" is the real value found; "Rating" is the band it
 
 ---
 
-Full report saved to `target/docs/discovery/03-frontend-modernization.md` (orchestration UI will convert to PDF). Pipeline summary: `agent-runs/20260714T220150_twb7uq/03-frontend-modernization-summary.md`. Analysis source: `shende-shweta/FSDKC@main` (14 TS/TSX/JSX files, 8 view components).
+**Deliverables saved:**
+- Full report: `target/docs/discovery/03-frontend-modernization.md`
+- Pipeline summary: `agent-runs/20260715T193441_nth87z/03-frontend-modernization-summary.md`
 
 ---
 
-## 4. Testing & Quality Assurance Analysis
+## 4. Backend Modernization Analysis
 
-<div class="overall-rating overall-rating--high-risk"><div class="overall-rating-label">Overall Codebase Rating — Testing &amp; Quality Assurance</div><div class="overall-rating-value">High Risk</div><div class="overall-rating-note">Driven by High-Risk untested critical logic (H1), low coverage (H2), missing integration tests (H3), missing contract tests (H4), absent E2E tests (H7), and assertion-free unit tests (H8).</div></div>
+<div class="overall-rating overall-rating--high-risk"><div class="overall-rating-label">Overall Codebase Rating — Backend Modernization</div><div class="overall-rating-value">High Risk</div><div class="overall-rating-note">Driven by Direct SQL/ORM Outside Data Layer (H3), Missing Service Layer (H5), API Sprawl (H6), Missing API Governance (H7), and Parallel API Runtimes (H8).</div></div>
 
 > **Executive Summary**
 >
-> Test-suite health across the FSDKC monorepo is **critically thin**. The backend ships **PHPUnit 11** with only **2 unit test files** (3 test methods) that assert hard-coded arrays and random numbers — none import `App\` production classes. The React 19 / Vite 6 / TypeScript frontend (**15 source files**) and Node `dev-api` (**6 source files**) have **zero** test files and no Jest, Vitest, Cypress, or Playwright configuration. Estimated overall coverage by test-file-to-source ratio is **~6%** (2 test files / 36 application source files); per-layer split is **backend ~13% file ratio (0% effective)**, **frontend 0%**, and **dev-api 0%**. No coverage reports (`lcov`, `clover.xml`) exist in the repository. GitHub Actions runs `vendor/bin/phpunit` against MariaDB on every PR (backend gate), but the frontend job only runs `npm run build` and `dev-api` is excluded entirely. The highest-risk gaps are untested Discovery/Connect orchestration (`RealTimeTestService`, six API controllers), no integration or contract tests for **19 public API routes**, and no E2E coverage for realtime SSE workflows. Overall verdict: **High Risk**.
+> Analysis covered **24 controllers/handlers** (6 Laravel API controllers + 18 Express route handlers), **37 REST endpoints**, and **2 injectable service classes** (0 repositories) from `shende-shweta/FSDKC@main` via GitHub REST API (recursive tree + raw content fetch). The Klearcom backend runs two parallel API runtimes: Laravel 12 uses constructor injection for `MongoService` and `RealTimeTestService`, but **25 of 32 Eloquent access points (78%)** remain in controllers with no repository layer, and four controllers embed KPI math, IVR tree building, and reachability calculations inline. Three PHP `extract()` calls — including one on raw `$request->all()` — create untyped variable scope from user input. The Node `dev-api` holds all relational state in a module-level mutable `store` singleton with **18 inline route handlers** mirroring Laravel. No OpenAPI spec, API versioning, or contract tests exist; CI runs PHPUnit and frontend build only. Overall verdict: **High Risk**, driven by data-layer bypass (H3), missing service tier across dual runtimes (H5), API sprawl and zero governance (H6–H7), and parallel API implementations (H8).
 
-## 5.1 Benchmark Ratings Summary
+## 4.1 Benchmark Ratings Summary
 
 | # | Hotspot | Primary KPI | <span class="rating rating-good">Good</span> | <span class="rating rating-moderate">Moderate</span> | <span class="rating rating-high-risk">High Risk</span> | Measured | Rating |
 |---|---|---|---|---|---|---|---|
-| H1 | Untested Critical Logic | Critical modules with zero tests | 0 | 1–3 | >3 | 9 modules | <span class="rating rating-high-risk">High Risk</span> |
-| H2 | Low Test Coverage | Overall coverage % | >80% | 50–80% | <50% | ~6% estimated (2/36 app source files; no coverage report) | <span class="rating rating-high-risk">High Risk</span> |
-| H3 | Missing Integration Tests | Boundaries covered % | >70% | 30–70% | <30% | 0% (0 Feature/HTTP/DB tests) | <span class="rating rating-high-risk">High Risk</span> |
-| H4 | Missing Contract Tests | APIs with contract tests % | >80% | 40–80% | <40% | 0% (0/19 endpoints) | <span class="rating rating-high-risk">High Risk</span> |
-| H5 | Flaky / Skipped Tests | Skipped/flaky test count | 0 | 1–5 | >5 | 0 | <span class="rating rating-good">Good</span> |
-| H6 | No CI Test Gate | Tests enforced in CI | Required gate | Runs, not required | No CI test run | Backend PHPUnit on PR; frontend build-only; dev-api excluded | <span class="rating rating-moderate">Moderate</span> |
-| H7 | No End-to-End Tests (additional) | Critical user flows with E2E specs | ≥2 flows | 1 flow | 0 flows | 0 E2E specs | <span class="rating rating-high-risk">High Risk</span> |
-| H8 | Assertion-Free Unit Tests (additional) | Unit tests exercising production code % | >80% | 40–80% | <40% | 0% (0/2 tests import `App\` code) | <span class="rating rating-high-risk">High Risk</span> |
+| H1 | Dynamic Variable Creation | Dynamic-var-from-input occurrences | 0 | 1–10 | >10 | 3 (`extract()` calls) | <span class="rating rating-moderate">Moderate</span> |
+| H2 | Global Mutable State | Globals / mutable static state | 0 | 1–5 | >5 | 2 module-level stores | <span class="rating rating-moderate">Moderate</span> |
+| H3 | Direct SQL Outside Data Layer | Data-layer compliance % | >90% | 60–90% | <60% | 22% (7/32 Eloquent in services) | <span class="rating rating-high-risk">High Risk</span> |
+| H4 | Static / Singleton Abuse | Business-logic static/singleton classes | 0 | 1–5 | >5 | 0 | <span class="rating rating-good">Good</span> |
+| H5 | Missing Service Layer | Handlers with inline business logic | <10 | 10–20 | >20 | 22 (4 Laravel controllers + 18 dev-api routes) | <span class="rating rating-high-risk">High Risk</span> |
+| H6 | API Sprawl | Documented & governed endpoints % | >90% | 80–90% | <80% | 15% single-source (3/20 capabilities); 0% governed | <span class="rating rating-high-risk">High Risk</span> |
+| H7 | Missing API Governance | Governance compliance % | 100% | 90–99% | <90% | 0% (no spec, versioning, or contract tests) | <span class="rating rating-high-risk">High Risk</span> |
+| H8 | Parallel API Runtimes (additional) | Capabilities with duplicate Laravel + dev-api handlers (target 0) | 0 | 1–5 | >5 | 17 duplicated capabilities | <span class="rating rating-high-risk">High Risk</span> |
+| H9 | Missing Input Validation on dev-api (additional) | POST/PUT routes without schema validation (target 0) | 0 | 1–3 | >3 | 4 unvalidated write routes | <span class="rating rating-high-risk">High Risk</span> |
 
-## 5.4 Actions Required
+## 4.5 Actions Required
 
 | Hotspot | Action | Rating | Priority |
 |---|---|---|---|
-| H1 — Untested Critical Logic | Add PHPUnit tests for `RealTimeTestService`, all six API controllers, and `MongoService`; add Vitest tests for `useRealtimeTest`, pages, and `api/client.ts`; add or remove dev-api with parity tests. | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-critical">Critical</span> |
-| H2 — Low Test Coverage | Establish coverage baselines (PHPUnit `--coverage-text`, Vitest `--coverage`); enforce 75% backend / 60% frontend thresholds in CI before refactors. | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-critical">Critical</span> |
-| H3 — Missing Integration Tests | Create `backend/tests/Feature/` with `RefreshDatabase` + MariaDB; test Discovery job lifecycle, Connect check flow, and SSE streaming boundaries. | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-high">High</span> |
-| H4 — Missing Contract Tests | Publish OpenAPI spec; add JSON Schema contract tests for all 19 API endpoints; validate TypeScript types against fixtures. | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-high">High</span> |
-| H6 — No CI Test Gate | Add `vitest run` to frontend CI job; add dev-api test job or deprecate runtime; mark all test jobs as required PR checks. | <span class="rating rating-moderate">Moderate</span> | <span class="sev sev-medium">Medium</span> |
-| H7 — No End-to-End Tests | Add Playwright with Docker Compose; cover Discovery create→start→stream and Connect create→check→alert flows. | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-high">High</span> |
-| H8 — Assertion-Free Unit Tests | Replace `HealthTest` and `ReachabilityCalculationTest` with tests that import `App\` classes; fail CI on assertion-free unit tests. | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-medium">Medium</span> |
+| H1 — Dynamic Variable Creation | Replace `extract($filters)` in `LegacyReportController` with validated request DTO; refactor `LegacyDataMapper` to explicit field access; add CI ban on `extract()`. | <span class="rating rating-moderate">Moderate</span> | <span class="sev sev-high">High</span> |
+| H2 — Global Mutable State | Encapsulate `dev-api/src/store.js` in an injectable repository; eliminate module-level business mutation or retire dev-api. | <span class="rating rating-moderate">Moderate</span> | <span class="sev sev-medium">Medium</span> |
+| H3 — Direct SQL Outside Data Layer | Create Eloquent repositories for all four models; move 25 controller ORM calls into repositories; target >90% data-layer compliance. | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-critical">Critical</span> |
+| H5 — Missing Service Layer | Add `DashboardService`, `DiscoveryService`, `ConnectService`; move KPI/tree/reachability logic out of controllers and dev-api routes. | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-critical">Critical</span> |
+| H6 — API Sprawl | Consolidate 17 duplicated capabilities under Laravel; deprecate overlapping dev-api routes; publish canonical endpoint list. | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-high">High</span> |
+| H7 — Missing API Governance | Author `docs/openapi.yaml`; add `/api/v1/` versioning; introduce contract tests in CI via schemathesis or equivalent. | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-high">High</span> |
+| H8 — Parallel API Runtimes | Retire or proxy `dev-api` to Laravel; eliminate triplicated reachability and dashboard KPI logic. | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-critical">Critical</span> |
+| H9 — Missing Input Validation on dev-api | Add express-validator schemas on all POST routes; remove or secure `bulk-import` endpoint. | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-high">High</span> |
 
-## 5.5 Expected Outcomes
+## 4.6 Expected Outcomes
 
-- **Critical paths protected:** Discovery job orchestration, Connect reachability calculation, and MongoDB event streaming have automated regression tests before any service-layer extraction.
-- **CI catches full-stack regressions:** Required PHPUnit + Vitest + Playwright gates on every PR prevent untested changes from merging.
-- **Contract stability:** JSON Schema tests for 19 API endpoints prevent breaking changes to `{ data: ... }` envelopes and SSE event shapes consumed by the React SPA.
-- **Effective coverage above 75%:** Replacing smoke tests and adding Feature/Vitest suites raises measured coverage from ~6% to refactor-safe levels.
-- **Parallel runtime drift eliminated:** Contract parity tests (or dev-api removal) ensure local development matches production Laravel behavior.
-
----
-
-**Deliverables saved:**
-- Full report: `target/docs/discovery/05-testing-and-quality-assurance.md`
-- Pipeline summary: `agent-runs/20260714T220150_twb7uq/05-testing-and-quality-assurance-summary.md`
-
-Analysis covered **backend** (15 PHP files, 2 PHPUnit tests), **frontend** (15 TS/TSX/JSX files, 0 tests), and **dev-api** (6 JS files, 0 tests) from `shende-shweta/FSDKC@main` via GitHub REST API.
+- **Repository layer** moves 25 controller Eloquent calls behind testable boundaries, raising data-layer compliance from 22% to >90% and enabling mocked persistence in PHPUnit feature tests.
+- **Application services** (`DashboardService`, `DiscoveryService`, `ConnectService`) eliminate triplicated KPI, tree, and reachability logic — fixes ship once and propagate to all entry points.
+- **Retiring parallel dev-api routes** removes 17 duplicate handlers and the module-level `store` singleton, halving API surface area and integration drift risk.
+- **OpenAPI spec + contract tests** catch breaking response-shape changes before merge, giving the React SPA a machine-verifiable integration contract.
+- **Replacing `extract()` with typed DTOs** closes the variable-scope injection vector in legacy reporting and aligns with AGENTS.md engineering standards.
