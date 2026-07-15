@@ -1,10 +1,10 @@
 # Discovery Executive Summary
 
-**Project:** test-discovery-15july · **Generated:** 15/07/2026, 14:59:57
+**Project:** test-discovery-15july · **Generated:** 15/07/2026, 15:05:01
 
 > **Executive Summary**
 >
-> This report consolidates the overall ratings, key findings, and recommended actions from the 2 discovery analyses run across this codebase (frontend and backend). Each section below reproduces that analysis's executive view; full evidence and diagrams live in the individual reports.
+> This report consolidates the overall ratings, key findings, and recommended actions from the 3 discovery analyses run across this codebase (frontend and backend). Each section below reproduces that analysis's executive view; full evidence and diagrams live in the individual reports.
 
 ## Portfolio Overview
 
@@ -12,6 +12,7 @@
 |---|---|---|---|
 | 1 | Architecture & Design Analysis | <span class="rating rating-high-risk">High Risk</span> | — |
 | 2 | Code Quality & Complexity Analysis | <span class="rating rating-high-risk">High Risk</span> | 73 / 100 — High Risk |
+| 3 | Frontend Modernization Analysis | <span class="rating rating-high-risk">High Risk</span> | — |
 
 ---
 
@@ -119,3 +120,42 @@ The complete Architecture & Design Hotspots Analysis has been saved to `docs/dis
 - **Reduced Change Amplification**: Better abstraction layers will stabilize high-churn files, reducing the current 64 monthly changes to a sustainable <10 per month
 
 The complete Code Quality & Complexity Hotspots Analysis has been saved to `docs/discovery/02-code-quality-complexity.md`. This analysis identified critical complexity issues with a 3,220-line useAppStore file and 58-branch reducer function, resulting in an overall **High Risk** rating with a hotspot score of 73/100. The system requires immediate architectural refactoring to split monolithic components, extract services, and implement proper design patterns to address the significant technical debt and stability issues.
+
+---
+
+## 3. Frontend Modernization Analysis
+
+<div class="overall-rating overall-rating--high-risk"><div class="overall-rating-label">Overall Codebase Rating — Frontend Modernization</div><div class="overall-rating-value">High Risk</div><div class="overall-rating-note">Driven by High Risk Massive Components and UI Component Duplication with 3,220-line useAppStore violating architectural boundaries.</div></div>
+
+> **Executive Summary**
+>
+> This multi-agent web application exhibits a modern React 19.2.5 frontend with excellent hook adoption (99.1%) but suffers from critical architectural anti-patterns. The system contains severely oversized components with useAppStore reaching 3,220 LOC and AgentDetail at 1,486 LOC, violating single responsibility principles by orders of magnitude. While legacy class components are minimal (0.9%), the frontend demonstrates concerning UI component duplication patterns (12%) across Panels, Modals, and Cards, indicating missing shared component library. Global state dependencies affect 32% of components through direct useAppStore access, creating tight coupling. The overall frontend requires immediate architectural refactoring to address massive component sizes and establish proper composition patterns.
+
+## 3.1 Benchmark Ratings Summary
+
+| # | Hotspot | Primary KPI | <span class="rating rating-good">Good</span> | <span class="rating rating-moderate">Moderate</span> | <span class="rating rating-high-risk">High Risk</span> | Measured | Rating |
+|---|---|---|---|---|---|---|---|
+| H1 | UI Component Duplication | Duplicate components % | <5% | 5–10% | >10% | 12% | <span class="rating rating-high-risk">High Risk</span> |
+| H2 | Legacy Class-Based Components | Modern component adoption % | >90% | 70–90% | <70% | 99.1% | <span class="rating rating-good">Good</span> |
+| H3 | Massive Components | Largest component LOC | <200 | 200–500 | >500 | 3220 | <span class="rating rating-high-risk">High Risk</span> |
+| H4 | Global State Dependencies | Components reading global state % | <30% | 30–60% | >60% | 31.6% | <span class="rating rating-moderate">Moderate</span> |
+| H5 | Complex State Management | Max prop-drilling depth | <3 | 3–5 | >5 | 3 | <span class="rating rating-moderate">Moderate</span> |
+
+## 3.5 Actions Required
+
+| Hotspot | Action | Rating | Priority |
+|---|---|---|---|
+| H3. Massive Components | Split useAppStore (3220 LOC) into AuthContext, WorkflowContext, AgentExecutionContext. Break AgentDetail (1486 LOC) into focused components. | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-critical">Critical</span> |
+| H1. UI Component Duplication | Create shared UI component library with BasePanel, BaseModal, BaseCard. Refactor 24 duplicate components to use shared patterns. | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-high">High</span> |
+| H4. Global State Dependencies | Introduce focused contexts (SetupContext, AgentDetailContext). Refactor 37 components to minimize global state access. | <span class="rating rating-moderate">Moderate</span> | <span class="sev sev-medium">Medium</span> |
+| H5. Complex State Management | Replace 3-level prop drilling with Context API or direct state access patterns. Implement state selectors for performance. | <span class="rating rating-moderate">Moderate</span> | <span class="sev sev-medium">Medium</span> |
+
+## 3.6 Expected Outcomes
+
+- **Dramatically Improved Maintainability**: Breaking the 3,220-line useAppStore into focused contexts will eliminate change amplification and enable independent development of features
+- **Enhanced Component Reusability**: Shared UI component library will reduce the 12% duplication rate and ensure consistent user experience across the application  
+- **Better Testing Coverage**: Smaller, focused components enable isolated unit testing and reduce integration test complexity by 60-70%
+- **Improved Developer Experience**: Eliminating massive components allows multiple developers to work on different features without merge conflicts
+- **Future-Ready Architecture**: Proper state management patterns and component composition prepare the frontend for React Server Components and concurrent rendering features
+
+The complete Frontend Modernization Hotspots Analysis has been saved to `docs/discovery/03-frontend-modernization.md`. This analysis identified critical frontend architectural issues with a 3,220-line useAppStore and 12% UI component duplication, resulting in an overall **High Risk** rating that requires immediate architectural refactoring to establish proper React composition patterns and shared component libraries.
