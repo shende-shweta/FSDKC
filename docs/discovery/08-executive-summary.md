@@ -1,10 +1,10 @@
 # Discovery Executive Summary
 
-**Project:** discovery-15july-01 · **Generated:** 15/07/2026, 19:57:39
+**Project:** discovery-15july-01 · **Generated:** 15/07/2026, 20:00:54
 
 > **Executive Summary**
 >
-> This report consolidates the overall ratings, key findings, and recommended actions from the 6 discovery analyses run across this codebase (frontend and backend). Each section below reproduces that analysis's executive view; full evidence and diagrams live in the individual reports.
+> This report consolidates the overall ratings, key findings, and recommended actions from the 7 discovery analyses run across this codebase (frontend and backend). Each section below reproduces that analysis's executive view; full evidence and diagrams live in the individual reports.
 
 ## Portfolio Overview
 
@@ -16,6 +16,7 @@
 | 4 | Backend Modernization Analysis | <span class="rating rating-high-risk">High Risk</span> | — |
 | 5 | Testing & Quality Assurance Analysis | <span class="rating rating-high-risk">High Risk</span> | — |
 | 6 | Security Analysis | <span class="rating rating-high-risk">High Risk</span> | — |
+| 7 | Technical Debt | <span class="rating rating-high-risk">High Risk</span> | — |
 
 ---
 
@@ -301,3 +302,42 @@ Full report with §1.2 evidence and §1.3 Mermaid diagrams: `target/docs/discove
 | FS5 — HTTP default & no CSP | Enforce HTTPS `VITE_API_URL` in production; add CSP to `frontend/index.html` or nginx. | <span class="rating rating-moderate">Moderate</span> | <span class="sev sev-medium">Medium</span> |
 | DevSecOps — no dependency scan in CI | Add `npm audit --audit-level=high` and `composer audit` steps to `.github/workflows/ci.yml`. | <span class="rating rating-moderate">Moderate</span> | <span class="sev sev-medium">Medium</span> |
 | No Security Audit Logging | Add structured audit log for resource create/start/stream events in Laravel. | <span class="rating rating-moderate">Moderate</span> | <span class="sev sev-medium">Medium</span> |
+
+---
+
+## 7. Technical Debt
+
+<div class="overall-rating overall-rating--high-risk"><div class="overall-rating-label">Overall Codebase Rating — Technical Debt &amp; Agentic Readiness</div><div class="overall-rating-value">High Risk</div><div class="overall-rating-note">Driven by High-Risk Code Repository Health (D1), Database Usage (D4), Observability Baseline (D6), and CI/Test Gate for Agent Output (D7).</div></div>
+
+> **Executive Summary**
+>
+> Analysis covered **87 repository files** from `shende-shweta/FSDKC@main` via GitHub REST API (recursive tree + raw content fetch), including `.github/workflows/ci.yml`, root/frontend/dev-api lock files, `backend/composer.json`, Docker Compose stack, manual SQL schema (`docker/mariadb/init.sql`), and five `AGENTS.md` guides. The Klearcom monorepo has a working Docker path and partial CI (PHPUnit + frontend build), but **agentic-harness readiness is High Risk** today. The three most severe gaps are: **(1) missing `backend/composer.lock` and incomplete CI** — no lint/static-analysis gate, dev-api excluded from CI, and no branch-protection signals (`.github/CODEOWNERS`, PR template); **(2) manual flat SQL schema with no Laravel migrations** — all five MariaDB tables live in one init script with non-idempotent `INSERT` seeds and 80% cross-domain table sharing; **(3) declared-but-unenforced quality tooling** — PHPStan in `backend/composer.json:14-16` has no config file and no CI step, while ESLint/Prettier/pre-commit are absent entirely. AI-assisted development is partially bootstrapped via root and module `AGENTS.md` files plus `docs/CODEBASE_AUDIT_ISSUES.md`, but the parallel Laravel + dev-api runtimes and ~0% effective test coverage mean agents cannot safely verify refactors before merge.
+
+## Readiness Benchmark Ratings
+
+| # | Dimension | <span class="rating rating-good">Good</span> | <span class="rating rating-moderate">Moderate</span> | <span class="rating rating-high-risk">High Risk</span> | Measured | Rating |
+|---|---|---|---|---|---|---|
+| D1 | Code Repository Health | all checks pass | 1–2 gaps | 3+ gaps / no CI | `.gitignore` present but incomplete; CI in `.github/workflows/ci.yml:1-58` runs PHPUnit + frontend build only; no `backend/composer.lock` (404 on fetch); no `.github/CODEOWNERS` or PR template | <span class="rating rating-high-risk">High Risk</span> |
+| D2 | Third-Party Tool Usage | mostly wired & current | some unused/unwired | many unused/unmaintained | 10/11 security/infra packages wired; `phpstan/phpstan` declared in `backend/composer.json:15` but no `phpstan.neon` and no CI invocation | <span class="rating rating-moderate">Moderate</span> |
+| D3 | AI Tool / Agentic Readiness | ready | partial | not ready | 5 `AGENTS.md` files + `docs/CODEBASE_AUDIT_ISSUES.md` enumerate work; `.kiro/` minimal; dual Laravel/dev-api runtime and weak CI block safe agent refactors | <span class="rating rating-moderate">Moderate</span> |
+| D4 | Database Usage | sound | some gaps | no constraints / shared flat schema | Manual `docker/mariadb/init.sql:1-89` only — no migrations; FK on 2/4 domain tables; non-idempotent SQL seeds; flat shared schema across Discovery + Connect | <span class="rating rating-high-risk">High Risk</span> |
+| D5 | Development Environment | reproducible | partial | manual / fragile | `backend/.env.example` + `dev-api/.env.example` present; no `frontend/.env.example`; Docker Compose + Dockerfiles present; TypeScript check via build only — no ESLint/Prettier/pre-commit/PHPStan in CI | <span class="rating rating-moderate">Moderate</span> |
+| D6 | Observability / Logging Baseline (additional) | structured logging + health endpoints | partial console logging | no logging baseline | Zero `Log::`, Monolog, Winston, Pino, or Sentry usage in 50 source files; dev-api uses `console.log` only (`dev-api/src/server.js:273-275`) | <span class="rating rating-high-risk">High Risk</span> |
+| D7 | CI / Test Gate for Agent Output (additional) | >80% critical-path coverage + lint in CI | partial gates | no effective gate | CI excludes dev-api; 2 PHPUnit files with 0% effective `App\` coverage; no frontend tests; no lint/SAST/audit steps in `.github/workflows/ci.yml` | <span class="rating rating-high-risk">High Risk</span> |
+
+## 7.8 Actions Required
+
+| Gap | Action | Rating | Priority |
+|---|---|---|---|
+| Missing `backend/composer.lock` | Run `composer update` in `backend/` and commit `backend/composer.lock`; add CI step verifying lock file is in sync with `composer.json`. | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-critical">Critical</span> |
+| Incomplete CI coverage | Extend `.github/workflows/ci.yml` with dev-api smoke test job, `vendor/bin/phpstan analyse`, ESLint on frontend, and `npm audit --audit-level=high`. | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-critical">Critical</span> |
+| No branch protection signals | Add `.github/CODEOWNERS` and `.github/pull_request_template.md`; enable required status checks on `main`. | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-high">High</span> |
+| PHPStan declared but unwired | Create `backend/phpstan.neon` with level 5; add `vendor/bin/phpstan analyse` to CI; ban `extract()` via custom rules. | <span class="rating rating-moderate">Moderate</span> | <span class="sev sev-high">High</span> |
+| Manual SQL schema — no migrations | Generate Laravel migrations from `docker/mariadb/init.sql`; restrict init.sql to first-boot seed; add migration step to CI backend job. | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-critical">Critical</span> |
+| Non-idempotent MariaDB seeds | Replace bare `INSERT` in `docker/mariadb/init.sql:71-89` with idempotent upserts or guard with `INSERT IGNORE`. | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-medium">Medium</span> |
+| Shared flat database schema | Assign table ownership per domain; plan schema split documented in init.sql header and module AGENTS.md files. | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-high">High</span> |
+| Missing `frontend/.env.example` | Create `frontend/.env.example` with `VITE_API_URL=http://localhost:8080/api`; reference in README quick-start. | <span class="rating rating-moderate">Moderate</span> | <span class="sev sev-low">Low</span> |
+| No ESLint / pre-commit enforcement | Add `eslint.config.js` with React/TS rules; add `.pre-commit-config.yaml` or enforce via CI only. | <span class="rating rating-moderate">Moderate</span> | <span class="sev sev-medium">Medium</span> |
+| Dual runtime blocks agent isolation | Deprecate dev-api or proxy to Laravel; until then, tag every audit item in `CODEBASE_AUDIT_ISSUES.md` with runtime scope. | <span class="rating rating-moderate">Moderate</span> | <span class="sev sev-critical">Critical</span> |
+| No observability baseline | Add Laravel `Log` facade usage in controllers/services; replace dev-api `console.log` with structured JSON logger; expose `/api/health` metrics. | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-medium">Medium</span> |
+| No effective test gate for agents | Rewrite PHPUnit tests to import `App\` classes; add Vitest for frontend hooks; add dev-api route tests; target 80% coverage gate in CI. | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-critical">Critical</span> |
