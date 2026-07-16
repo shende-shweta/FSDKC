@@ -1,6 +1,6 @@
 # Discovery Executive Summary
 
-**Project:** discovery-16july · **Generated:** 16/07/2026, 13:03:48
+**Project:** discovery-16july · **Generated:** 16/07/2026, 14:24:14
 
 > **Executive Summary**
 >
@@ -175,27 +175,25 @@ Analysis covered **backend** (26 PHP files), **frontend** (15 TS/JS files), and 
 
 ## 4. Backend Modernization Analysis
 
-<div class="overall-rating overall-rating--high-risk"><div class="overall-rating-label">Overall Codebase Rating — Backend Modernization</div><div class="overall-rating-value">High Risk</div><div class="overall-rating-note">Driven by H3 (22.6% data-layer compliance), H5 (33 inline handlers), H6 (16.7% single-API capabilities), H7 (0% API governance), and H8 (duplicated cross-runtime logic).</div></div>
+<div class="overall-rating overall-rating--high-risk"><div class="overall-rating-label">Overall Codebase Rating — Backend Modernization</div><div class="overall-rating-value">High Risk</div><div class="overall-rating-note">Driven by H3 (21.9% data-layer compliance), H5 (36 inline handlers), H6 (15% single-API capabilities), H7 (0% API governance), and H8 (duplicated cross-runtime logic).</div></div>
 
 > **Executive Summary**
 >
-> The FSDKC (Klearcom) backend is a dual-runtime stack: a Laravel 12 monolith (`backend/`) backed by Eloquent/MariaDB and MongoDB, plus a parallel Express dev-api (`dev-api/`) that re-implements most REST capabilities against an in-memory store. Architectural layering is immature — only two injectable service classes exist, Eloquent and KPI math live directly in controllers, and 15 of 18 API capabilities are duplicated across both runtimes with no OpenAPI spec, versioning, or contract tests. PHP `extract()` on user input appears in legacy reporting code, and the dev-api exposes unvalidated `req.body` writes plus module-level mutable globals. Overall backend modernization posture is **High Risk**, driven by missing data/service layers, API sprawl, absent API governance, and duplicated business logic across PHP and Node.
+> The FSDKC (Klearcom) backend is a dual-runtime stack: a Laravel 12 monolith (`backend/`) backed by Eloquent/MariaDB and MongoDB, plus a parallel Express dev-api (`dev-api/`) that re-implements most REST capabilities against an in-memory store. Architectural layering is immature — only two injectable service classes exist, Eloquent and KPI math live directly in controllers, and 17 of 20 API capabilities are duplicated across both runtimes with no OpenAPI spec, versioning, or contract tests. PHP `extract()` on user input appears in legacy reporting code, and the dev-api exposes unvalidated `req.body` writes plus module-level mutable globals. Overall backend modernization posture is **High Risk**, driven by missing data/service layers, API sprawl, absent API governance, and duplicated business logic across PHP and Node.
 
 ## 4.1 Benchmark Ratings Summary
 
 | # | Hotspot | Primary KPI | <span class="rating rating-good">Good</span> | <span class="rating rating-moderate">Moderate</span> | <span class="rating rating-high-risk">High Risk</span> | Measured | Rating |
 |---|---|---|---|---|---|---|---|
-| H1 | Dynamic Variable Creation | Dynamic-var-from-input occurrences | 0 | 1–10 | >10 | 3 `extract()` + unchecked `req.body` in 8 POST/PUT handlers | <span class="rating rating-moderate">Moderate</span> |
+| H1 | Dynamic Variable Creation | Dynamic-var-from-input occurrences | 0 | 1–10 | >10 | 3 `extract()` + unchecked `req.body` in 4 POST handlers | <span class="rating rating-moderate">Moderate</span> |
 | H2 | Global Mutable State | Globals / mutable static state | 0 | 1–5 | >5 | 2 modules (`store.js`, `mongo.js`) | <span class="rating rating-moderate">Moderate</span> |
-| H3 | Direct SQL Outside Data Layer | Data-layer compliance % | >90% | 60–90% | <60% | 22.6% (7 of 31 Eloquent calls in services) | <span class="rating rating-high-risk">High Risk</span> |
+| H3 | Direct SQL Outside Data Layer | Data-layer compliance % | >90% | 60–90% | <60% | 21.9% (7 of 32 Eloquent calls in services) | <span class="rating rating-high-risk">High Risk</span> |
 | H4 | Static / Singleton Abuse | Business-logic static/singleton classes | 0 | 1–5 | >5 | 0 | <span class="rating rating-good">Good</span> |
-| H5 | Missing Service Layer | Handlers with inline business logic | <10 | 10–20 | >20 | 33 (15 Laravel methods + 18 Express routes) | <span class="rating rating-high-risk">High Risk</span> |
-| H6 | API Sprawl | Documented & governed endpoints % | >90% | 80–90% | <80% | 16.7% single-API capabilities (3 of 18) | <span class="rating rating-high-risk">High Risk</span> |
+| H5 | Missing Service Layer | Handlers with inline business logic | <10 | 10–20 | >20 | 36 (18 Laravel methods + 18 Express routes) | <span class="rating rating-high-risk">High Risk</span> |
+| H6 | API Sprawl | Documented & governed endpoints % | >90% | 80–90% | <80% | 15% single-API capabilities (3 of 20) | <span class="rating rating-high-risk">High Risk</span> |
 | H7 | Missing API Governance | Governance compliance % | 100% | 90–99% | <90% | 0% (no OpenAPI, versioning, or contract tests) | <span class="rating rating-high-risk">High Risk</span> |
 | H8 | Duplicated Cross-Runtime Logic (additional) | Duplicate business-logic blocks across PHP/Node | 0 | 1–3 | >3 | 6 (reachability ×3, `buildTree` ×3) | <span class="rating rating-high-risk">High Risk</span> |
-| H9 | Unvalidated dev-api Inputs (additional) | POST/PUT handlers without schema validation | 0 | 1–3 | >3 | 5 (`/discovery/jobs`, `/connect/monitors`, `/connect/monitors/bulk-import`, etc.) | <span class="rating rating-high-risk">High Risk</span> |
-
-**No additional hotspots beyond the standard set were observed** beyond H8 and H9 documented above.
+| H9 | Unvalidated dev-api Inputs (additional) | POST/PUT handlers without schema validation | 0 | 1–3 | >3 | 4 (`/discovery/jobs`, `/discovery/jobs/:id/start`, `/connect/monitors`, `/connect/monitors/bulk-import`) | <span class="rating rating-high-risk">High Risk</span> |
 
 ## 4.5 Actions Required
 
@@ -217,3 +215,7 @@ Analysis covered **backend** (26 PHP files), **frontend** (15 TS/JS files), and 
 - OpenAPI specs with contract tests catch breaking response changes before they reach the React frontend.
 - Removing `extract()` and adding DTO validation closes untyped data-flow gaps in legacy reporting and dev-api writes.
 - Consolidating reachability and tree-building logic prevents KPI drift between PHP and Node runtimes.
+
+---
+
+Full report saved to `target/docs/discovery/04-backend-modernization.md` (PDF conversion runs automatically in the orchestration UI).
