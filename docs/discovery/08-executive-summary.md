@@ -1,16 +1,17 @@
 # Discovery Executive Summary
 
-**Project:** discovery-16july · **Generated:** 16/07/2026, 11:13:58
+**Project:** discovery-16july · **Generated:** 16/07/2026, 11:26:17
 
 > **Executive Summary**
 >
-> This report consolidates the overall ratings, key findings, and recommended actions from the 1 discovery analysis run across this codebase (frontend and backend). Each section below reproduces that analysis's executive view; full evidence and diagrams live in the individual reports.
+> This report consolidates the overall ratings, key findings, and recommended actions from the 2 discovery analyses run across this codebase (frontend and backend). Each section below reproduces that analysis's executive view; full evidence and diagrams live in the individual reports.
 
 ## Portfolio Overview
 
 | # | Analysis | Overall Rating | Hotspot Score |
 |---|---|---|---|
 | 1 | Architecture & Design Analysis | <span class="rating rating-high-risk">High Risk</span> | — |
+| 2 | Code Quality & Complexity Analysis | <span class="rating rating-high-risk">High Risk</span> | 46 / 100 — Moderate |
 
 ---
 
@@ -68,3 +69,59 @@
 Full report saved to `docs/discovery/01-architecture-design.md` (orchestration UI will convert to PDF). Pipeline artifact copy: `agent-runs/20260716T110541_bql9tn/01-architecture-design.md`.
 
 Analysis covered **backend** (26 PHP files), **frontend** (15 TS/JS files), and **dev-api** (9 JS files) from `shende-shweta/FSDKC` via GitHub REST API.
+
+---
+
+## 2. Code Quality & Complexity Analysis
+
+<div class="overall-rating overall-rating--high-risk"><div class="overall-rating-label">Overall Codebase Rating — Code Quality &amp; Complexity</div><div class="overall-rating-value">High Risk</div><div class="overall-rating-note">Driven by H1 cyclomatic complexity (36 in ConnectPage), H3 oversized ConnectPage component (201 LOC), and H4 cross-runtime business-logic duplication (~11%).</div></div>
+
+> **Executive Summary**
+>
+> Analysis covered **50 source files** across three layers: **17 frontend** (898 LOC), **26 backend** (918 LOC), and **6 dev-api** (720 LOC), totaling **2,598 LOC** of application code. No stack-specific complexity linter (ESLint `complexity`, PHPMD, Sonar) is configured; metrics were derived via manual branch counting and LOC analysis against GitHub `main`. The codebase is young (**3 commits**) with low churn and clear single-author ownership, but **structural complexity and duplication are elevated**: `ConnectPage.tsx` registers **cyclomatic complexity ≈36** and **201 LOC** in a single component, and **parallel Laravel + Express implementations** duplicate realtime test workflows and KPI logic (~**11%** estimated business-rule duplication). Overall health is **High Risk**, driven by frontend page complexity and cross-runtime business-logic duplication despite favorable churn and ownership signals.
+
+## 2.1 Benchmark Ratings Summary
+
+| # | Hotspot | Primary KPI | <span class="rating rating-good">Good</span> | <span class="rating rating-moderate">Moderate</span> | <span class="rating rating-high-risk">High Risk</span> | Measured | Rating |
+|---|---|---|---|---|---|---|---|
+| H1 | High Cyclomatic Complexity | Max complexity per method | <10 | 10–20 | >20 | **36** (`ConnectPage.tsx` component) | <span class="rating rating-high-risk">High Risk</span> |
+| H2 | Large Classes | Largest class LOC | <300 | 300–1000 | >1000 | **224** (`dev-api/src/server.js`) | <span class="rating rating-good">Good</span> |
+| H3 | Large Functions | Largest function LOC | <50 | 50–200 | >200 | **201** (`ConnectPage.tsx` component) | <span class="rating rating-high-risk">High Risk</span> |
+| H4 | Business Logic Duplication | Duplicated business logic % | <5% | 5–10% | >10% | **~11%** (est. ~285 LOC duplicated / 2,598 total) | <span class="rating rating-high-risk">High Risk</span> |
+| H5 | Duplicate Code (general) | Overall duplicate code % | <5% | 5–10% | >10% | **~8%** (structural + block duplicates) | <span class="rating rating-moderate">Moderate</span> |
+| H6 | High Churn Areas | Monthly changes (top files) | <5 | 5–10 | >10 | **2** (max per file, 6-month window) | <span class="rating rating-good">Good</span> |
+| H7 | Defect-Prone Files | Fix commits (hottest file) | 1–3 | 4–5 | >5 | **1** (`frontend/src/App.tsx`, logo fix) | <span class="rating rating-good">Good</span> |
+| H8 | Ownership Issues | Top-author ownership % | >80% | 60–80% | <60% | **100%** (single author `ksabai-gl` on hot files) | <span class="rating rating-good">Good</span> |
+| H9 | Dual API Runtimes (additional) | Parallel endpoint implementations | 0 | 1 runtime | 2+ full stacks | **2** (Laravel + Express) | <span class="rating rating-high-risk">High Risk</span> |
+| H10 | Missing Lifecycle Cleanup (additional) | Components with interval/SSE leak | 0 | 1 | 2+ | **1** (`LegacyMonitorPoller.jsx`) | <span class="rating rating-moderate">Moderate</span> |
+
+### Hotspot Score breakdown
+
+| Component | Weight | Sub-score (0–100) | Weighted |
+|---|---|---|---|
+| Cyclomatic Complexity | 25% | 85 | 21.25 |
+| Code Churn | 25% | 10 | 2.50 |
+| Defect Density | 20% | 15 | 3.00 |
+| Class/Function Size | 15% | 72 | 10.80 |
+| Business Logic Duplication | 10% | 78 | 7.80 |
+| Developer Ownership Risk | 5% | 5 | 0.25 |
+| **Hotspot Score** | **100%** | | **46 / 100** |
+
+## 2.5 Actions Required
+
+| Hotspot | Action | Rating | Priority |
+|---|---|---|---|
+| H1 High Cyclomatic Complexity | Split `ConnectPage.tsx` and `DiscoveryPage.tsx` into sub-components; extract query hooks; target CC <10 per unit | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-critical">Critical</span> |
+| H3 Large Functions | Decompose 201-line `ConnectPage` into 4 feature components; move `getSeedDocuments` fixtures to JSON files | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-high">High</span> |
+| H4 Business Logic Duplication | Consolidate reachability formula, `buildTree`, and test-runner workflows into shared domain services; deprecate duplicate Express logic | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-critical">Critical</span> |
+| H5 Duplicate Code (general) | Extract `TreeBuilder` utility; add jscpd/PHPCPD to CI with <5% threshold | <span class="rating rating-moderate">Moderate</span> | <span class="sev sev-medium">Medium</span> |
+| H9 Dual API Runtimes | Designate single production API runtime; document dev-api deprecation or generate from OpenAPI | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-high">High</span> |
+| H10 Missing Lifecycle Cleanup | Add `componentWillUnmount` to `LegacyMonitorPoller.jsx` or migrate to hooks with `useEffect` cleanup | <span class="rating rating-moderate">Moderate</span> | <span class="sev sev-medium">Medium</span> |
+
+## 2.6 Expected Outcomes
+
+- Cyclomatic complexity on Connect/Discovery pages drops below 10 per component, making UI changes testable with shallow render tests.
+- Business-rule changes (reachability threshold, alert logic) require a single edit in a domain service instead of three coordinated copies.
+- Eliminating the dual-runtime pattern halves the API maintenance surface and removes drift between Laravel and Express responses.
+- Extracted page sub-components enable Storybook documentation and faster code reviews (<80 LOC per PR file).
+- Adding complexity and duplication lint rules to CI prevents regression of hotspots identified in this audit.
