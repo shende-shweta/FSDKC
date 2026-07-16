@@ -1,10 +1,10 @@
 # Discovery Executive Summary
 
-**Project:** discovery-16july · **Generated:** 16/07/2026, 14:24:14
+**Project:** discovery-16july · **Generated:** 16/07/2026, 14:27:37
 
 > **Executive Summary**
 >
-> This report consolidates the overall ratings, key findings, and recommended actions from the 4 discovery analyses run across this codebase (frontend and backend). Each section below reproduces that analysis's executive view; full evidence and diagrams live in the individual reports.
+> This report consolidates the overall ratings, key findings, and recommended actions from the 5 discovery analyses run across this codebase (frontend and backend). Each section below reproduces that analysis's executive view; full evidence and diagrams live in the individual reports.
 
 ## Portfolio Overview
 
@@ -14,6 +14,7 @@
 | 2 | Code Quality & Complexity Analysis | <span class="rating rating-high-risk">High Risk</span> | 46 / 100 — Moderate |
 | 3 | Frontend Modernization Analysis | <span class="rating rating-high-risk">High Risk</span> | — |
 | 4 | Backend Modernization Analysis | <span class="rating rating-high-risk">High Risk</span> | — |
+| 5 | Testing & Quality Assurance Analysis | <span class="rating rating-high-risk">High Risk</span> | — |
 
 ---
 
@@ -136,7 +137,7 @@ Analysis covered **backend** (26 PHP files), **frontend** (15 TS/JS files), and 
 
 > **Executive Summary**
 >
-> The Travelsdin social-network frontend is a React 18.2 application built with Create React App, using functional components and hooks throughout — no legacy class-based components were found. However, the codebase relies on hand-written Redux (actions/reducers/thunks) rather than Redux Toolkit, and nearly half of all view files read from the global Redux store directly. Several preview components duplicate the same user-loading and reaction-toggle patterns, and the messaging feature passes eight callback props through four component layers. Two additional risks stand out: zero accessibility attributes (`aria-*` / `role`) across all 59 scanned components, and direct `document`/`window` DOM manipulation inside React views. Overall modernization health is **High Risk**, driven primarily by legacy state-management patterns and missing accessibility infrastructure.
+> The Travelsdin social-network frontend is a React 18.2 application built with Create React App, using functional components and hooks throughout — no legacy class-based components were found. However, the codebase relies on hand-written Redux (actions/reducers/thunks) rather than Redux Toolkit, and nearly half of all view files read from the global Redux store directly. Several preview components duplicate the same user-loading and reaction-toggle patterns, and the messaging feature passes ten callback props through four component layers. Two additional risks stand out: zero accessibility attributes (`aria-*` / `role`) across all 59 scanned components, and direct `document`/`window` DOM manipulation inside React views. Overall modernization health is **High Risk**, driven primarily by legacy state-management patterns and missing accessibility infrastructure.
 
 ## 3.1 Benchmark Ratings Summary
 
@@ -219,3 +220,47 @@ Analysis covered **backend** (26 PHP files), **frontend** (15 TS/JS files), and 
 ---
 
 Full report saved to `target/docs/discovery/04-backend-modernization.md` (PDF conversion runs automatically in the orchestration UI).
+
+---
+
+## 5. Testing & Quality Assurance Analysis
+
+<div class="overall-rating overall-rating--high-risk"><div class="overall-rating-label">Overall Codebase Rating — Testing &amp; Quality Assurance</div><div class="overall-rating-value">High Risk</div><div class="overall-rating-note">Driven by H1 (&gt;3 untested critical modules), H2 (~0% effective coverage), H3/H4 (0% integration and contract tests), H7 (no frontend test framework), and H8 (placeholder PHPUnit tests).</div></div>
+
+> **Executive Summary**
+>
+> FSDKC (Klearcom) is a three-runtime monolith: Laravel 12 (`backend/`), React 19 SPA (`frontend/`), and Express dev-api (`dev-api/`). **Backend:** PHPUnit 11 is configured and runs in CI, but only **2 unit test files** exist — both are placeholders that assert hardcoded arrays or `random_int()` rather than application code; **0 feature/integration tests** and no `tests/Feature/` directory. **Frontend:** **0 test files** and no Vitest/Jest/Testing Library dependency in `frontend/package.json`; CI runs `tsc --noEmit && vite build` only. **dev-api:** **6 source modules, 0 tests**; omitted entirely from `.github/workflows/ci.yml`. Estimated effective coverage is **~0%** across all layers (36 production source files vs 2 non-exercising tests). Nineteen Laravel and eighteen Express route handlers have **no contract tests**. One PHPUnit test is **non-deterministic** (`random_int()`). Overall testing posture is **High Risk**, driven by untested critical IVR/reachability/KPI logic, zero integration and contract coverage, absent frontend and dev-api test suites, and a CI gate that passes without validating business behavior.
+
+## 5.1 Benchmark Ratings Summary
+
+| # | Hotspot | Primary KPI | <span class="rating rating-good">Good</span> | <span class="rating rating-moderate">Moderate</span> | <span class="rating rating-high-risk">High Risk</span> | Measured | Rating |
+|---|---|---|---|---|---|---|---|
+| H1 | Untested Critical Logic | Critical modules with zero tests | 0 | 1–3 | >3 | 8 critical modules | <span class="rating rating-high-risk">High Risk</span> |
+| H2 | Low Test Coverage | Overall coverage % | >80% | 50–80% | <50% | ~0% effective (backend 0%, frontend 0%, dev-api 0%) | <span class="rating rating-high-risk">High Risk</span> |
+| H3 | Missing Integration Tests | Boundaries covered % | >70% | 30–70% | <30% | 0% (no Feature/HTTP tests) | <span class="rating rating-high-risk">High Risk</span> |
+| H4 | Missing Contract Tests | APIs with contract tests % | >80% | 40–80% | <40% | 0% (0 of 19 Laravel + 18 dev-api routes) | <span class="rating rating-high-risk">High Risk</span> |
+| H5 | Flaky / Skipped Tests | Skipped/flaky test count | 0 | 1–5 | >5 | 1 non-deterministic test (`random_int`) | <span class="rating rating-moderate">Moderate</span> |
+| H6 | No CI Test Gate | Tests enforced in CI | Required gate | Runs, not required | No CI test run | Backend PHPUnit on PR; dev-api omitted; frontend build-only | <span class="rating rating-moderate">Moderate</span> |
+| H7 | No Frontend Test Framework (additional) | Frontend source files with unit tests % | >70% | 30–70% | <30% | 0% (0 of 13 code files; no Vitest/Jest) | <span class="rating rating-high-risk">High Risk</span> |
+| H8 | Placeholder / Non-Exercising Tests (additional) | Tests invoking production code % | >80% | 40–80% | <40% | 0% (0 of 2 PHPUnit files touch app code) | <span class="rating rating-high-risk">High Risk</span> |
+
+## 5.4 Actions Required
+
+| Hotspot | Action | Rating | Priority |
+|---|---|---|---|
+| H1 Untested Critical Logic | Add PHPUnit tests for `RealTimeTestService`, `MongoService`, and controllers; Vitest tests for `useRealtimeTest`; node tests for `dev-api/src/realtime.js` | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-critical">Critical</span> |
+| H2 Low Test Coverage | Enable PHPUnit coverage reporting; add Vitest to frontend; target 75% threshold across backend, frontend, and dev-api | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-critical">Critical</span> |
+| H3 Missing Integration Tests | Create `tests/Feature/` with Laravel HTTP tests for discovery/connect lifecycles and MongoDB integration | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-high">High</span> |
+| H4 Missing Contract Tests | Publish OpenAPI spec; add JSON Schema contract tests for all 19 Laravel routes; parity tests vs dev-api | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-high">High</span> |
+| H6 No CI Test Gate | Extend `.github/workflows/ci.yml` with dev-api and frontend test jobs; enforce coverage thresholds | <span class="rating rating-moderate">Moderate</span> | <span class="sev sev-high">High</span> |
+| H7 No Frontend Test Framework | Add Vitest + RTL to `frontend/`; write component/hook tests for pages and `api/client.ts` | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-high">High</span> |
+| H8 Placeholder Tests | Rewrite `HealthTest` and `ReachabilityCalculationTest` to exercise real routes and reachability math | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-high">High</span> |
+| H5 Flaky / Skipped Tests | Replace `random_int()` test with deterministic reachability calculator assertions | <span class="rating rating-moderate">Moderate</span> | <span class="sev sev-medium">Medium</span> |
+
+## 5.5 Expected Outcomes
+
+- IVR discovery, reachability calculation, and dashboard KPI logic are protected by deterministic PHPUnit tests before any service-layer extraction or dev-api deprecation.
+- Laravel Feature tests and JSON Schema contract tests catch API shape drift before the React SPA breaks at runtime.
+- Vitest + RTL coverage on `useRealtimeTest`, pages, and `api/client.ts` enables safe frontend refactors (e.g., splitting `ConnectPage`).
+- CI gates on all three runtimes (backend PHPUnit, frontend Vitest, dev-api node:test) block merges that drop coverage or break integration boundaries.
+- Effective coverage rises from ~0% toward 75–80% with per-layer reporting for backend, frontend, and dev-api.
