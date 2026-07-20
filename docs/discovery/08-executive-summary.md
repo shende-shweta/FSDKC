@@ -1,10 +1,10 @@
 # Discovery Executive Summary
 
-**Project:** discovery-20jul-2026 · **Generated:** 20/07/2026, 18:39:44
+**Project:** discovery-20jul-2026 · **Generated:** 20/07/2026, 18:41:51
 
 > **Executive Summary**
 >
-> This report consolidates the overall ratings, key findings, and recommended actions from the 3 discovery analyses run across this codebase (frontend and backend). Each section below reproduces that analysis's executive view; full evidence and diagrams live in the individual reports.
+> This report consolidates the overall ratings, key findings, and recommended actions from the 4 discovery analyses run across this codebase (frontend and backend). Each section below reproduces that analysis's executive view; full evidence and diagrams live in the individual reports.
 
 ## Portfolio Overview
 
@@ -13,6 +13,7 @@
 | 1 | Architecture & Design Analysis | <span class="rating rating-high-risk">High Risk</span> | — |
 | 2 | Code Quality & Complexity Analysis | <span class="rating rating-high-risk">High Risk</span> | 78 / 100 — High Risk |
 | 3 | Frontend Modernization Analysis | <span class="rating rating-high-risk">High Risk</span> | — |
+| 4 | Backend Modernization Analysis | <span class="rating rating-high-risk">High Risk</span> | — |
 
 ---
 
@@ -126,3 +127,46 @@
 > **Executive Summary**
 >
 > This workspace has a mature React frontend, and the dominant idiom is already function components with hooks on top of React 19.2.5. The main modernization gap is not framework migration; it is component scale and orchestration complexity, especially in `App.jsx`, `Dashboard.jsx`, and the setup flow screens. Legacy class-based UI is effectively absent aside from a single error boundary, so the codebase is mostly aligned with current React patterns. The most material risks are oversized components, repeated imperative state synchronization, and deep feature components that mix routing, auth, layout, and data orchestration. Overall, the codebase is usable and mostly modern, but the largest screens would benefit from extracting shared shell, state, and form primitives.
+
+---
+
+## 4. Backend Modernization Analysis
+
+<div class="overall-rating overall-rating--high-risk"><div class="overall-rating-label">Overall Codebase Rating — Backend Modernization</div><div class="overall-rating-value">High Risk</div><div class="overall-rating-note">Missing service-layer separation, in-memory mutable state, and absent API governance drive the verdict.</div></div>
+
+> **Executive Summary**
+>
+> The backend is a Node/Express codebase with a clear API surface, but most request handling is concentrated in thin route files that still contain substantial orchestration, HTTP client logic, and state management. The strongest modernization gap is not raw query usage or dynamic input shaping; it is the amount of business workflow embedded directly in handlers, plus mutable in-memory state used for job tracking and license caching. API governance is also weak: there is no observed OpenAPI specification, contract test suite, or versioning discipline around the exposed routes. Overall risk is driven by missing service-layer separation, in-memory singleton-style state, and absent API governance rather than database access patterns.
+
+## 4.1 Benchmark Ratings Summary
+
+| # | Hotspot | Primary KPI | <span class="rating rating-good">Good</span> | <span class="rating rating-moderate">Moderate</span> | <span class="rating rating-high-risk">High Risk</span> | Measured | Rating |
+|---|---|---|---|---|---|---|---|
+| H1 | Dynamic Variable Creation | Dynamic-var-from-input occurrences | 0 | 1–10 | >10 | 0 | <span class="rating rating-good">Good</span> |
+| H2 | Global Mutable State | Globals / mutable static state | 0 | 1–5 | >5 | 2 | <span class="rating rating-moderate">Moderate</span> |
+| H3 | Direct SQL Outside Data Layer | Data-layer compliance % | >90% | 60–90% | <60% | 100% | <span class="rating rating-good">Good</span> |
+| H4 | Static / Singleton Abuse | Business-logic static/singleton classes | 0 | 1–5 | >5 | 0 | <span class="rating rating-good">Good</span> |
+| H5 | Missing Service Layer | Handlers with inline business logic | <10 | 10–20 | >20 | 2 | <span class="rating rating-moderate">Moderate</span> |
+| H6 | API Sprawl | Documented & governed endpoints % | >90% | 80–90% | <80% | 0% observed | <span class="rating rating-high-risk">High Risk</span> |
+| H7 | Missing API Governance | Governance compliance % | 100% | 90–99% | <90% | 0% observed | <span class="rating rating-high-risk">High Risk</span> |
+| H8 | In-Memory Job State (additional) | Persistent job-state coverage % | >95% | 80–95% | <80% | 0% | <span class="rating rating-high-risk">High Risk</span> |
+
+No additional hotspots beyond the standard set were observed.
+
+## 4.5 Actions Required
+
+| Hotspot | Action | Rating | Priority |
+|---|---|---|---|
+| H2 Global Mutable State | Replace process-local cache and in-memory job state with scoped cache/repository abstractions. | <span class="rating rating-moderate">Moderate</span> | <span class="sev sev-medium">Medium</span> |
+| H5 Missing Service Layer | Extract agent execution and job-preparation workflows into dedicated services and keep routes thin. | <span class="rating rating-moderate">Moderate</span> | <span class="sev sev-medium">Medium</span> |
+| H6 API Sprawl | Define and version the API surface with a single contract source for gateway and orchestration endpoints. | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-critical">Critical</span> |
+| H7 Missing API Governance | Add OpenAPI linting, contract tests, and release checks for all external endpoints. | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-critical">Critical</span> |
+| H8 In-Memory Job State | Persist job lifecycle state in a shared store with atomic token consumption. | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-critical">Critical</span> |
+
+## 4.6 Expected Outcomes
+
+- Typed request handling and explicit DTO-style mapping reduce hidden coupling and make input flow easier to audit.
+- Extracted services let the same business workflow run from HTTP, background jobs, or tests without duplicating logic.
+- Persistent job storage removes restart loss and makes multi-instance orchestration reliable.
+- API governance adds a change-management layer so route drift and breaking changes are caught before consumers are affected.
+- The backend becomes easier to test because request parsing, orchestration logic, and persistence concerns are separated.
