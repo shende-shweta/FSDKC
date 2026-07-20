@@ -1,6 +1,6 @@
 # Discovery Executive Summary
 
-**Project:** discovery-20jul-2026 · **Generated:** 20/07/2026, 18:28:37
+**Project:** discovery-20jul-2026 · **Generated:** 20/07/2026, 18:31:59
 
 > **Executive Summary**
 >
