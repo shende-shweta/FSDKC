@@ -1,16 +1,17 @@
 # Discovery Executive Summary
 
-**Project:** discovery-20jul-2026 · **Generated:** 20/07/2026, 18:31:59
+**Project:** discovery-20jul-2026 · **Generated:** 20/07/2026, 18:34:08
 
 > **Executive Summary**
 >
-> This report consolidates the overall ratings, key findings, and recommended actions from the 1 discovery analysis run across this codebase (frontend and backend). Each section below reproduces that analysis's executive view; full evidence and diagrams live in the individual reports.
+> This report consolidates the overall ratings, key findings, and recommended actions from the 2 discovery analyses run across this codebase (frontend and backend). Each section below reproduces that analysis's executive view; full evidence and diagrams live in the individual reports.
 
 ## Portfolio Overview
 
 | # | Analysis | Overall Rating | Hotspot Score |
 |---|---|---|---|
 | 1 | Architecture & Design Analysis | <span class="rating rating-moderate">Moderate</span> | — |
+| 2 | Frontend Modernization Analysis | <span class="rating rating-high-risk">High Risk</span> | — |
 
 ---
 
@@ -54,3 +55,13 @@
 - Service, repository, and boundary extraction opportunities become visible.
 - Future refactors can be prioritized from evidence instead of inference.
 - Change amplification risk can be reduced with a concrete target-state map.
+
+---
+
+## 2. Frontend Modernization Analysis
+
+<div class="overall-rating overall-rating--high-risk"><div class="overall-rating-label">Overall Codebase Rating — Frontend Modernization</div><div class="overall-rating-value">High Risk</div><div class="overall-rating-note">The largest driver is massive component scale, with `App.jsx`, `Dashboard.jsx`, `StepFlowSelection.jsx`, and `StepIdeConfig.jsx` each carrying too much routing, orchestration, and form logic in one place.</div></div>
+
+> **Executive Summary**
+>
+> This workspace has a mature React frontend, and the dominant idiom is already function components with hooks on top of React 19.2.5. The main modernization gap is not framework migration; it is component scale and orchestration complexity, especially in `App.jsx`, `Dashboard.jsx`, and the setup flow screens. Legacy class-based UI is effectively absent aside from a single error boundary, so the codebase is mostly aligned with current React patterns. The most material risks are oversized components, repeated imperative state synchronization, and deep feature components that mix routing, auth, layout, and data orchestration. Overall, the codebase is usable and mostly modern, but the largest screens would benefit from extracting shared shell, state, and form primitives.
