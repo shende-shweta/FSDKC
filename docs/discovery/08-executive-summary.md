@@ -1,10 +1,20 @@
-Re-run complete. The report was re-generated from fresh evidence against `shende-shweta/FSDKC@main` (via GitHub REST API, cloud OAuth mode) and delivered as **PR #15**: https://github.com/shende-shweta/FSDKC/pull/15 → `docs/discovery/01-architecture-design.md` (orchestration UI renders it to `01-architecture-design.pdf`).
+# Discovery Executive Summary
 
-**Delta vs the previous run (PR #13):** all ratings reproduced from fresh evidence with refreshed line numbers; **F2 corrected from Moderate → Good** — measured 7 files build endpoints inline, which is under the `<10` Good threshold and a shared `api` client already exists, so it was rated honestly rather than forced into an action item.
+**Project:** discovery-24jul-003 · **Generated:** 24/07/2026, 16:10:24
 
-Below are the required sections, verbatim from the saved report.
+> **Executive Summary**
+>
+> This report consolidates the overall ratings, key findings, and recommended actions from the 1 discovery analysis run across this codebase (frontend and backend). Each section below reproduces that analysis's executive view; full evidence and diagrams live in the individual reports.
+
+## Portfolio Overview
+
+| # | Analysis | Overall Rating | Hotspot Score |
+|---|---|---|---|
+| 1 | Architecture & Design Analysis | <span class="rating rating-high-risk">High Risk</span> | — |
 
 ---
+
+## 1. Architecture & Design Analysis
 
 <div class="overall-rating overall-rating--high-risk"><div class="overall-rating-label">Overall Codebase Rating — Architecture &amp; Design</div><div class="overall-rating-value">High Risk</div><div class="overall-rating-note">Driven by High-Risk Missing Service Layer (H2), Missing Repository Pattern (H3), Shared Database Coupling (H9), and a fully Duplicated Parallel Backend (H10).</div></div>
 
