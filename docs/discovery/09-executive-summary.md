@@ -1,6 +1,6 @@
 # Discovery Executive Summary
 
-**Project:** dicovery-123 · **Generated:** 24/07/2026, 18:35:34
+**Project:** dicovery-123 · **Generated:** 24/07/2026, 18:36:40
 
 > **Executive Summary**
 >
@@ -11,7 +11,7 @@
 | # | Analysis | Overall Rating | Hotspot Score |
 |---|---|---|---|
 | 1 | Architecture & Design Analysis | <span class="rating rating-high-risk">High Risk</span> | — |
-| 2 | Code Quality & Complexity Analysis | <span class="rating rating-high-risk">High Risk</span> | 42 / 100 — Moderate |
+| 2 | Performance & Sustainability Analysis | <span class="rating rating-high-risk">High Risk</span> | — |
 
 ---
 
@@ -67,58 +67,56 @@
 
 ---
 
-## 2. Code Quality & Complexity Analysis
+## 2. Performance & Sustainability Analysis
 
-<div class="overall-rating overall-rating--high-risk"><div class="overall-rating-label">Overall Codebase Rating — Code Quality &amp; Complexity</div><div class="overall-rating-value">High Risk</div><div class="overall-rating-note">Driven by H3 Large Functions (ConnectPage 201 LOC), H5 Duplicate Code (~12.3%), and H9 unsafe extract() (3 call sites).</div></div>
+<div class="overall-rating overall-rating--high-risk"><div class="overall-rating-label">Overall Codebase Rating — Performance &amp; Sustainability</div><div class="overall-rating-value">High Risk</div><div class="overall-rating-note">Driven by P2 Database, P3 API, P4 Memory, P6 Concurrency, P8 Resource Utilization, P9 Network, and P12 Sustainability.</div></div>
 
 > **Executive Summary**
 >
-> Klearcom is a small multi-layer platform (Laravel API, React SPA, Node `dev-api`) with no runnable complexity tooling configured (phpstan is listed in Composer but unused; no ESLint complexity rule), so metrics were measured by manual branch/LOC inspection across **39 application source files** (backend 18, frontend 15, `dev-api` 6). The worst findings are a **201-LOC** `ConnectPage` component (ESLint-style CC ≈ 20), **~8.8–12.3%** duplicated business/UI logic (IVR `buildTree` ×3, reachability math ×4, dual Laravel/`dev-api` realtime runners, near-clone Discovery/Connect pages), and **3** unsafe `extract()` call sites in legacy PHP. Git history is short (3 commits, single author `ksabai-gl`); churn and ownership look healthy, but they do not offset the structural duplication and size risks. Overall rating is **High Risk**, driven by large functions, general duplication, and `extract()`.
+> Klearcom’s dual runtime (Laravel + Node `dev-api`) is a small voice-observability platform with clear efficiency debt concentrated in data access, long-lived streaming, and always-on Docker resources. The highest-risk patterns are an N+1 query loop in `LegacyReportController`, unbounded MariaDB list loads, SSE endpoints that re-read full Mongo event histories every 500 ms while holding request workers with `usleep`, and a five-service Compose stack with no CPU/memory limits that ships the frontend via `npm run dev`. Frontend polling (`refetchInterval`, `LegacyMonitorPoller` every 3 s, `MongoStatus` every 15 s) amplifies traffic while nginx lacks gzip. CI installs Composer/npm and pecl MongoDB with no dependency caching. Overall rating is **High Risk**, driven by database, API latency, memory retention, concurrency, network chatter, resource waste, and sustainability posture.
 
-## 2.1 Benchmark Ratings Summary
-
-Layers covered: **Backend** (Laravel `backend/app` + routes/tests = 18 files) · **Frontend** (React `frontend/src` = 15 files) · **Dev API** (Node `dev-api/src` = 6 files). Tooling: manual LOC/branch counts (no ESLint complexity, no radon/gocyclo, phpstan present in `composer.json` but no config/run).
+## 8.1 Benchmark Ratings Summary
 
 | # | Hotspot | Primary KPI | <span class="rating rating-good">Good</span> | <span class="rating rating-moderate">Moderate</span> | <span class="rating rating-high-risk">High Risk</span> | Measured | Rating |
 |---|---|---|---|---|---|---|---|
-| H1 | High Cyclomatic Complexity | Max complexity per method | <10 | 10–20 | >20 | 20 (`ConnectPage`, ESLint-style) · FE DiscoveryPage 18 · BE-JS `runConnectTest` 15 · BE-PHP `runConnectTest` 10 | <span class="rating rating-moderate">Moderate</span> |
-| H2 | Large Classes | Largest class/file LOC | <300 | 300–1000 | >1000 | 224 (`dev-api/src/server.js`); next FE `ConnectPage.tsx` 208 | <span class="rating rating-good">Good</span> |
-| H3 | Large Functions | Largest function LOC | <50 | 50–200 | >200 | 201 (`ConnectPage`); FE DiscoveryPage 154 · BE max ~64 (`runConnectTest`) | <span class="rating rating-high-risk">High Risk</span> |
-| H4 | Business Logic Duplication | Duplicated business logic % | <5% | 5–10% | >10% | ~8.8% (`buildTree`×3, reachability×4, dual realtime, KPI×2) | <span class="rating rating-moderate">Moderate</span> |
-| H5 | Duplicate Code (general) | Overall duplicate code % | <5% | 5–10% | >10% | ~12.3% (H4 + Discovery/Connect page UI clone) | <span class="rating rating-high-risk">High Risk</span> |
-| H6 | High Churn Areas | Monthly changes (top files) | <5 | 5–10 | >10 | ~2 (June 2026; top files touched twice) | <span class="rating rating-good">Good</span> |
-| H7 | Defect-Prone Files | Fix commits (hottest file) | 1–3 | 4–5 | >5 | 1 (`ConnectController` / `server.js` / `App.tsx` in fix commits) | <span class="rating rating-good">Good</span> |
-| H8 | Ownership Issues | Top-author ownership % | >80% | 60–80% | <60% | 100% (`ksabai-gl`) | <span class="rating rating-good">Good</span> |
-| H9 | Unsafe `extract()` / dynamic vars (additional) | `extract()` call sites (Good 0 · Moderate 1–2 · High Risk ≥3) | 0 | 1–2 | ≥3 | 3 | <span class="rating rating-high-risk">High Risk</span> |
-| H10 | Missing lifecycle cleanup (additional) | Uncleared interval/SSE components (Good 0 · Moderate 1 · High Risk ≥2) | 0 | 1 | ≥2 | 1 (`LegacyMonitorPoller`) | <span class="rating rating-moderate">Moderate</span> |
+| P1 | Algorithm Efficiency | High-complexity algorithm sites | 0 | 1–5 | >5 | 3 | <span class="rating rating-moderate">Moderate</span> |
+| P2 | Database Performance | Slow-query / N+1 sites | 0 | 1–5 | >5 | 6 | <span class="rating rating-high-risk">High Risk</span> |
+| P3 | API Performance | Response-latency hotspots | 0 | 1–5 | >5 | 6 | <span class="rating rating-high-risk">High Risk</span> |
+| P4 | Memory Efficiency | High-memory sites | 0 | 1–3 | >3 | 4 | <span class="rating rating-high-risk">High Risk</span> |
+| P5 | CPU Efficiency | CPU-intensive operations | 0 | 1–5 | >5 | 3 | <span class="rating rating-moderate">Moderate</span> |
+| P6 | Concurrency | Blocking / sequential sites | 0 | 1–5 | >5 | 6 | <span class="rating rating-high-risk">High Risk</span> |
+| P7 | Caching | Missed caching opportunities | 0 | 1–5 | >5 | 5 | <span class="rating rating-moderate">Moderate</span> |
+| P8 | Resource Utilization | Over-provisioned / idle resources | 0 | 1–3 | >3 | 4 | <span class="rating rating-high-risk">High Risk</span> |
+| P9 | Network Efficiency | Excessive-traffic sites | 0 | 1–5 | >5 | 6 | <span class="rating rating-high-risk">High Risk</span> |
+| P10 | Build Efficiency | Build/test pipeline efficiency | efficient | partial | slow / no caching | partial | <span class="rating rating-moderate">Moderate</span> |
+| P11 | Logging Efficiency | Excessive-logging sites | 0 | 1–10 | >10 | 1 | <span class="rating rating-moderate">Moderate</span> |
+| P12 | Sustainability | Resource-optimization posture | optimized | partial | wasteful | wasteful | <span class="rating rating-high-risk">High Risk</span> |
+| P13 | Missing client timeouts (additional) | Fetch/HTTP calls without timeout | 0 | 1–2 | >2 | 1 | <span class="rating rating-moderate">Moderate</span> |
+| P14 | Uncleared polling intervals (additional) | Intervals without unmount cleanup | 0 | 1 | ≥2 | 1 | <span class="rating rating-moderate">Moderate</span> |
 
-### Hotspot Score breakdown
-
-| Component | Weight | Sub-score (0–100) | Weighted |
-|---|---|---|---|
-| Cyclomatic Complexity | 25% | 66 | 16.5 |
-| Code Churn | 25% | 18 | 4.5 |
-| Defect Density | 20% | 15 | 3.0 |
-| Class/Function Size | 15% | 68 | 10.2 |
-| Business Logic Duplication | 10% | 72 | 7.2 |
-| Developer Ownership Risk | 5% | 8 | 0.4 |
-| **Hotspot Score** | **100%** | | **42 / 100** |
-
-## 2.5 Actions Required
+## 8.5 Actions Required
 
 | Hotspot | Action | Rating | Priority |
 |---|---|---|---|
-| H1 High Cyclomatic Complexity | Split `ConnectPage` conditionals into subcomponents; extract shared reachability helpers; enable ESLint `complexity` | <span class="rating rating-moderate">Moderate</span> | <span class="sev sev-medium">Medium</span> |
-| H3 Large Functions | Break `ConnectPage` (201 LOC) and shrink `DiscoveryPage` (154 LOC) via hooks + presentational children | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-critical">Critical</span> |
-| H4 Business Logic Duplication | Consolidate `buildTree` and reachability math into domain services used by Laravel and `dev-api` | <span class="rating rating-moderate">Moderate</span> | <span class="sev sev-high">High</span> |
-| H5 Duplicate Code (general) | Extract shared page layout / transcript / query patterns; add duplication detection in CI | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-critical">Critical</span> |
-| H9 Unsafe `extract()` | Replace 3 `extract()` sites with explicit validated arrays / DTOs; gate in CI | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-critical">Critical</span> |
-| H10 Missing lifecycle cleanup | Add unmount cleanup to `LegacyMonitorPoller` or migrate to React Query | <span class="rating rating-moderate">Moderate</span> | <span class="sev sev-medium">Medium</span> |
+| P2 Database Performance | Eliminate N+1 in `LegacyReportController`; paginate list endpoints; add indexes on status/country/checked_at; cursor-limit Mongo event reads | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-critical">Critical</span> |
+| P3 API Performance | Move simulated tests to queue workers; replace SSE Mongo re-poll with pub/sub; stop parallel REST refetch during live runs | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-critical">Critical</span> |
+| P6 Concurrency | Stop holding PHP-FPM/Node with `usleep`/interval polls; introduce worker pool and push-based streams | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-critical">Critical</span> |
+| P4 Memory Efficiency | Cap `getTestEvents` and in-memory store growth; paginate Eloquent collections | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-high">High</span> |
+| P8 Resource Utilization | Add Compose resource limits; ship static frontend image; disable APP_DEBUG outside local; unpublish DB ports in non-dev | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-high">High</span> |
+| P9 Network Efficiency | Prefer SSE-only live updates; remove legacy 3 s/10 s pollers; enable nginx gzip/brotli | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-high">High</span> |
+| P12 Sustainability | Right-size always-on stack and cut wasteful poll/N+1 paths; plan autoscaled workers for AWS | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-high">High</span> |
+| P1 Algorithm Efficiency | Replace recursive full-scan `buildTree` with parent_id hash grouping (O(n)) shared across Laravel and `dev-api` | <span class="rating rating-moderate">Moderate</span> | <span class="sev sev-medium">Medium</span> |
+| P5 CPU Efficiency | Ping-only health checks; avoid full collection counts on the 15 s status path | <span class="rating rating-moderate">Moderate</span> | <span class="sev sev-medium">Medium</span> |
+| P7 Caching | Cache dashboard KPIs and IVR trees; short-circuit repeated health work | <span class="rating rating-moderate">Moderate</span> | <span class="sev sev-medium">Medium</span> |
+| P10 Build Efficiency | Cache Composer/npm and avoid pecl rebuild every CI run | <span class="rating rating-moderate">Moderate</span> | <span class="sev sev-medium">Medium</span> |
+| P11 Logging Efficiency | Default `APP_DEBUG=false` outside local Compose profile | <span class="rating rating-moderate">Moderate</span> | <span class="sev sev-medium">Medium</span> |
+| P13 Missing client timeouts | Add `AbortSignal.timeout` to `frontend/src/api/client.ts` | <span class="rating rating-moderate">Moderate</span> | <span class="sev sev-medium">Medium</span> |
+| P14 Uncleared polling intervals | Clear `LegacyMonitorPoller` interval on unmount | <span class="rating rating-moderate">Moderate</span> | <span class="sev sev-medium">Medium</span> |
 
-## 2.6 Expected Outcomes
+## 8.6 Expected Outcomes
 
-- Lower defect rate on Connect/Discovery changes by testing smaller components and a single reachability policy.
-- Safer refactors when IVR tree or alert thresholds change — one service update instead of three+ copies.
-- Easier code review once page components stay under ~80 LOC and ternaries are flattened.
-- Clearer ownership of domain rules (`IvrTreeBuilder`, `ReachabilityPolicy`) versus UI shells.
-- Elimination of `extract()` and interval-leak debt reduces security and runtime footguns in legacy paths.
+- Batched/indexed MariaDB access and paginated lists remove N+1 and unbounded payload latency as monitors and jobs scale.
+- Queue-backed tests plus pub/sub SSE free PHP-FPM/Node workers, raising concurrent Discovery/Connect throughput.
+- O(n) tree builds, capped Mongo reads, and server-side KPI/tree caches cut CPU, memory, and repeated query cost.
+- gzip, SSE-only live updates, and removal of leaked/legacy pollers reduce chatty traffic and bandwidth.
+- Right-sized Compose (static FE, debug off, limits) plus CI dependency caching lower cloud cost, idle energy use, and carbon footprint.
