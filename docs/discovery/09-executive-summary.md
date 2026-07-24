@@ -1,14 +1,20 @@
-Re-running Architecture & Design analysis on FSDKC via GitHub OAuth (cloud-only). Discovering tools and fetching current `main` structure.Fetching repo structure and key source trees from `main` for a fresh KPI pass.Walking application source trees next — code search returned empty.Fetching controller and key source files for KPI measurement and evidence excerpts.I have enough evidence. Writing the full report, then publishing it on a new feature branch and opening a PR.Writing the complete architecture report, then publishing it via GitHub.Pushing the report to the feature branch via GitHub MCP.Uploading via GitHub Contents REST API (`gh api`), then opening the PR with MCP.Re-run complete against `main` @ `481814f`. Report: `docs/discovery/01-architecture-design.md` on branch `discovery/arch-design-20260724T162813`.  
-PR: https://github.com/shende-shweta/FSDKC/pull/17
+# Discovery Executive Summary
 
-### Delta
-| Path | Action |
-|---|---|
-| `docs/discovery/01-architecture-design.md` | Created/updated on feature branch |
-| `agent-runs/20260724T162813_tursg8/01-architecture-design.md` | Pipeline artifact |
-| `agent-runs/20260724T162813_tursg8/delta-report.md` | Delta log |
+**Project:** test-discovery-cursor · **Generated:** 24/07/2026, 16:33:31
+
+> **Executive Summary**
+>
+> This report consolidates the overall ratings, key findings, and recommended actions from the 1 discovery analysis run across this codebase (frontend and backend). Each section below reproduces that analysis's executive view; full evidence and diagrams live in the individual reports.
+
+## Portfolio Overview
+
+| # | Analysis | Overall Rating | Hotspot Score |
+|---|---|---|---|
+| 1 | Architecture & Design Analysis | <span class="rating rating-high-risk">High Risk</span> | — |
 
 ---
+
+## 1. Architecture & Design Analysis
 
 <div class="overall-rating overall-rating--high-risk"><div class="overall-rating-label">Overall Codebase Rating — Architecture &amp; Design</div><div class="overall-rating-value">High Risk</div><div class="overall-rating-note">Driven by High-Risk Missing Repository Pattern (H3), Direct SQL/ORM in Controllers (H6), Domain Boundary Violations (H8), Shared Database Coupling (H9), and Dual-Stack Duplicated Domain Logic (H10).</div></div>
 
