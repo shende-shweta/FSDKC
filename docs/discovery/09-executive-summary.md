@@ -1,20 +1,21 @@
 # Discovery Executive Summary
 
-**Project:** discovery-04-aug-002 · **Generated:** 05/08/2026, 11:41:48
+**Project:** discovery-04-aug-002 · **Generated:** 05/08/2026, 11:48:28
 
 > **Executive Summary**
 >
-> This report consolidates the overall ratings, key findings, and recommended actions from the 5 discovery analyses run across this codebase (frontend and backend). Each section below reproduces that analysis's executive view; full evidence and diagrams live in the individual reports.
+> This report consolidates the overall ratings, key findings, and recommended actions from the 6 discovery analyses run across this codebase (frontend and backend). Each section below reproduces that analysis's executive view; full evidence and diagrams live in the individual reports.
 
 ## Portfolio Overview
 
 | # | Analysis | Overall Rating | Hotspot Score |
 |---|---|---|---|
 | 1 | Architecture & Design Analysis | <span class="rating rating-high-risk">High Risk</span> | — |
-| 2 | Frontend Modernization Analysis | <span class="rating rating-moderate">Moderate</span> | — |
-| 3 | Backend Modernization Analysis | <span class="rating rating-high-risk">High Risk</span> | — |
-| 4 | Security Analysis | <span class="rating rating-high-risk">High Risk</span> | — |
-| 5 | Technical Debt | <span class="rating rating-moderate">Moderate</span> | — |
+| 2 | Code Quality & Complexity Analysis | <span class="rating rating-moderate">Moderate</span> | 58 / 100 — Moderate |
+| 3 | Frontend Modernization Analysis | <span class="rating rating-moderate">Moderate</span> | — |
+| 4 | Backend Modernization Analysis | <span class="rating rating-high-risk">High Risk</span> | — |
+| 5 | Security Analysis | <span class="rating rating-high-risk">High Risk</span> | — |
+| 6 | Technical Debt | <span class="rating rating-moderate">Moderate</span> | — |
 
 ---
 
@@ -76,7 +77,59 @@ The full report includes detailed evidence sections with real code examples, Mer
 
 ---
 
-## 2. Frontend Modernization Analysis
+## 2. Code Quality & Complexity Analysis
+
+<div class="overall-rating overall-rating--moderate"><div class="overall-rating-label">Overall Codebase Rating — Code Quality &amp; Complexity</div><div class="overall-rating-value">Moderate</div><div class="overall-rating-note">Business logic duplication (test workflows + page templates) and lack of shared service abstractions drive this rating; individual function/class sizing is healthy.</div></div>
+
+> **Executive Summary**
+>
+> The Klearcom monolithic platform exhibits low-to-moderate code complexity overall, with no individual methods or classes exceeding critical thresholds. However, significant **business logic duplication** across similar test workflows (Discovery vs. Connect) and **near-identical page templates** in the frontend present high-risk maintenance surfaces. Test orchestration is duplicated in PHP and JavaScript backends; reachability calculations are computed identically in multiple places. The codebase is young (3 commits) with minimal churn. The most actionable opportunity is consolidating test-step execution into a shared service pattern and extracting a reusable page template for Discovery and Connect UI modules.
+
+## 2.1 Benchmark Ratings Summary
+
+| # | Hotspot | Primary KPI | Measured | Rating |
+|---|---|---|---|---|
+| H1 | High Cyclomatic Complexity | Max complexity per method | 8 | <span class="rating rating-good">Good</span> |
+| H2 | Large Classes | Largest class LOC | 276 (server.js) | <span class="rating rating-good">Good</span> |
+| H3 | Large Functions | Largest function LOC | 76 (runConnectTest) | <span class="rating rating-moderate">Moderate</span> |
+| H4 | Business Logic Duplication | Duplicated business-rule code (%) | ~12% | <span class="rating rating-high-risk">High Risk</span> |
+| H5 | Duplicate Code (general) | Overall duplicate code (%) | ~8% | <span class="rating rating-moderate">Moderate</span> |
+| H6 | High Churn Areas | Monthly changes (top files) | 2 | <span class="rating rating-good">Good</span> |
+| H7 | Defect-Prone Files | Fix commits (hottest file) | 1 | <span class="rating rating-good">Good</span> |
+| H8 | Ownership Issues | Top-author ownership (%) | 100% | <span class="rating rating-good">Good</span> |
+| H9 | Weak Separation of Concerns | Page component LOC | 222 (ConnectPage) | <span class="rating rating-moderate">Moderate</span> |
+
+## 2.5 Actions Required
+
+| Hotspot | Action | Rating | Priority |
+|---|---|---|---|
+| H4 – Business Logic Duplication | Consolidate test orchestration into `TestOrchestrator` service. Move step arrays to configuration. Unify reachability calculation. | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-critical">Critical</span> |
+| H5 – Frontend Duplicate Code | Extract `PageTemplate` and `usePageData()` hook. Parameterize by module type. Consolidate form handling. | <span class="rating rating-moderate">Moderate</span> | <span class="sev sev-high">High</span> |
+| H3 – Large Functions | Split test functions into `initializeTest()`, `executeSteps()`, `finalizeTest()`. | <span class="rating rating-moderate">Moderate</span> | <span class="sev sev-high">High</span> |
+| H9 – Page Component Separation | Extract form, query, and UI sub-components. Target <100 LOC per page. | <span class="rating rating-moderate">Moderate</span> | <span class="sev sev-medium">Medium</span> |
+
+## 2.6 Expected Outcomes
+
+- **Lower defect rate:** Fewer places to update when business rules change; reduced copy-paste bug risk.
+- **Faster code review:** Smaller, single-responsibility functions and components are easier to validate.
+- **Easier testing:** Extracted services can be unit-tested independently from controllers and pages.
+- **Better reuse:** Generic `TestOrchestrator` supports new test types without duplication.
+- **Improved maintainability:** Clearer patterns reduce onboarding time for new contributors.
+
+---
+
+**Report saved to:** `docs/discovery/02-code-quality-complexity.md` (ready for PDF conversion by the orchestration UI)
+
+The analysis identified **4 actionable hotspots** with evidence from real code:
+- **Critical:** Test logic duplicated identically in PHP and JavaScript backends (~12% of codebase)
+- **High:** Frontend pages share nearly identical form and query patterns
+- **Medium:** Test orchestration functions at 57–76 LOC mixing multiple concerns; page components at 200+ LOC
+
+All findings include specific file paths, code examples, and concrete refactoring recommendations using design patterns (Strategy, Service Layer, Composition).
+
+---
+
+## 3. Frontend Modernization Analysis
 
 <div class="overall-rating overall-rating--moderate"><div class="overall-rating-label">Overall Codebase Rating — Frontend Discovery</div><div class="overall-rating-value">Moderate</div><div class="overall-rating-note">High-severity CVEs (postcss, react-router), legacy class component with memory leak, missing code splitting and browser compat configuration, and significant code duplication drive this rating.</div></div>
 
@@ -144,7 +197,7 @@ The complete report includes detailed evidence sections (§3.2) with code excerp
 
 ---
 
-## 3. Backend Modernization Analysis
+## 4. Backend Modernization Analysis
 
 <div class="overall-rating overall-rating--high-risk"><div class="overall-rating-label">Overall Codebase Rating — Backend Modernization</div><div class="overall-rating-value">High Risk</div><div class="overall-rating-note">Authentication & Authorization, API Governance, Security Vulnerabilities, and Performance & Caching gaps drive this verdict; critical auth middleware is completely absent from all routes.</div></div>
 
@@ -212,7 +265,7 @@ The complete report includes detailed hotspot evidence with real code examples, 
 
 ---
 
-## 4. Security Analysis
+## 5. Security Analysis
 
 <div class="overall-rating overall-rating--high-risk"><div class="overall-rating-label">Overall Codebase Rating — Security</div><div class="overall-rating-value">High Risk</div><div class="overall-rating-note">Permissive CORS + missing authentication on all routes + high-severity frontend CVEs force immediate remediation before production deployment.</div></div>
 
@@ -257,7 +310,7 @@ The complete report includes detailed hotspot evidence with real code examples, 
 
 ---
 
-## 5. Technical Debt
+## 6. Technical Debt
 
 <div class="overall-rating overall-rating--moderate"><div class="overall-rating-label">Overall Codebase Rating — Technical Debt &amp; Agentic Readiness</div><div class="overall-rating-value">Moderate</div><div class="overall-rating-note">Database schema lacks indexes on foreign keys and frequently-queried fields; missing code style enforcement in CI blocks agent integration; no structured observability infrastructure.</div></div>
 
