@@ -1,16 +1,17 @@
 # Discovery Executive Summary
 
-**Project:** discovery-test · **Generated:** 11/08/2026, 16:04:10
+**Project:** discovery-test · **Generated:** 11/08/2026, 16:16:22
 
 > **Executive Summary**
 >
-> This report consolidates the overall ratings, key findings, and recommended actions from the 1 discovery analysis run across this codebase (frontend and backend). Each section below reproduces that analysis's executive view; full evidence and diagrams live in the individual reports.
+> This report consolidates the overall ratings, key findings, and recommended actions from the 2 discovery analyses run across this codebase (frontend and backend). Each section below reproduces that analysis's executive view; full evidence and diagrams live in the individual reports.
 
 ## Portfolio Overview
 
 | # | Analysis | Overall Rating |
 |---|---|---|
 | 1 | Architecture & Design Analysis | — |
+| 2 | Code Quality & Complexity Analysis | — |
 
 ---
 
@@ -63,3 +64,64 @@
 ---
 
 The full report (34 KB, including all code evidence and Mermaid diagrams) is saved to `docs/discovery/01-architecture-design.md`. The orchestration UI will convert it to PDF automatically.","stop_reason":"end_turn","session_id":"7a812e19-13a2-40bc-8fd8-11d9e79989f8","total_cost_usd":1.8304448000000004,"usage":{"input_tokens":5,"cache_creation_input_tokens":28476,"cache_read_input_tokens":99390,"output_tokens":4450,"server_tool_use":{"web_search_requests":0,"web_fetch_requests":0},"service_tier":"standard","cache_creation":{"ephemeral_1h_input_tokens":28476,"ephemeral_5m_input_tokens":0},"inference_geo":"not_available","iterations":[{"input_tokens":1,"output_tokens":2306,"cache_read_input_tokens":43454,"cache_creation_input_tokens":2135,"cache_creation":{"ephemeral_5m_input_tokens":0,"ephemeral_1h_input_tokens":2135},"type":"message"}],"speed":"standard"},"modelUsage":{"claude-haiku-4-5-20251001":{"inputTokens":10502,"outputTokens":15,"cacheReadInputTokens":0,"cacheCreationInputTokens":0,"webSearchRequests":0,"costUSD":0.010577,"contextWindow":200000,"maxOutputTokens":32000},"claude-sonnet-4-6":{"inputTokens":46,"outputTokens":35734,"cacheReadInputTokens":2440596,"cacheCreationInputTokens":129992,"webSearchRequests":0,"costUSD":1.8198678000000004,"contextWindow":200000,"maxOutputTokens":32000}},"permission_denials":[],"terminal_reason":"completed","fast_mode_state":"off","uuid":"3f79d4f6-72b5-419b-a4c6-dfbf21bb9356"}
+
+---
+
+## 2. Code Quality & Complexity Analysis
+
+> **Executive Summary**
+>
+> The Klearcom codebase spans three layers — a Laravel PHP backend, a React/TypeScript frontend, and a Node.js dev-API — totalling 36 source files and approximately 2,100 combined LOC. No file or class exceeds the 300-LOC threshold, and cyclomatic complexity is well-controlled across all layers (peak ~7). The most significant quality concern is business logic duplication: the reachability-rate calculation is independently implemented in three places (ConnectController.php, RealTimeTestService.php, and dev-api/realtime.js), and the IVR tree-building logic is copy-pasted verbatim across two PHP controllers. A secondary concern is the PHP `extract()` anti-pattern used in `LegacyReportController` directly on `$request->all()`, which simultaneously harms traceability and poses a security boundary risk. Git history is shallow (3 commits, single author), so churn and defect-density signals are low-confidence but show no alarm patterns.
+
+## §2.1 Benchmark Ratings Summary
+
+| # | Hotspot | Primary KPI | <span class=\"rating rating-good\">Good</span> | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"rating rating-high-risk\">High Risk</span> | Measured | Rating |
+|---|---|---|---|---|---|---|---|
+| H1 | High Cyclomatic Complexity | Max complexity per method | <10 | 10–20 | >20 | ~7 (StreamController::streamSession) | <span class=\"rating rating-good\">Good</span> |
+| H2 | Large Classes | Largest class/file LOC | <300 | 300–1000 | >1000 | 222 LOC (ConnectPage.tsx) | <span class=\"rating rating-good\">Good</span> |
+| H3 | Large Functions | Largest function LOC | <50 | 50–200 | >200 | ~60 LOC (runConnectTest in dev-api/realtime.js) | <span class=\"rating rating-moderate\">Moderate</span> |
+| H4 | Business Logic Duplication | Duplicated business-rule code % | <5% | 5–10% | >10% | ~7% (3× reachability calc, 2× buildTree, 2× serializeDoc) | <span class=\"rating rating-moderate\">Moderate</span> |
+| H5 | Duplicate Code (general) | Overall duplicate code % | <5% | 5–10% | >10% | ~8% (all H4 patterns plus duplicate query/refetch logic in pages) | <span class=\"rating rating-moderate\">Moderate</span> |
+| H6 | High Churn Areas | Monthly changes (top files) | <5 | 5–10 | >10 | 2 max (shallow 3-commit repo) | <span class=\"rating rating-good\">Good</span> |
+| H7 | Defect-Prone Files | Fix commits (hottest file) | 1–3 | 4–5 | >5 | 1–2 (server.js, ConnectController.php) | <span class=\"rating rating-good\">Good</span> |
+| H8 | Ownership Issues | Top-author ownership % | >80% | 60–80% | <60% | 100% (ksabai-gl) | <span class=\"rating rating-good\">Good</span> |
+| H9 | PHP `extract()` Anti-Pattern *(additional)* | Unsafe `extract()` calls; ≥1 on user input = Moderate | 0 | 1 internal-only | ≥1 user input | 1 on `$request->all()` + 1 without EXTR_SKIP | <span class=\"rating rating-moderate\">Moderate</span> |
+| H10 | Unguarded Error Throw *(additional)* | `throw` in component without Error Boundary | 0 | ≥1 | — | 1 (LegacyDashboardWidget.tsx:37) | <span class=\"rating rating-moderate\">Moderate</span> |
+
+### Hotspot Score breakdown
+
+| Component | Weight | Sub-score (0–100) | Weighted |
+|---|---|---|---|
+| Cyclomatic Complexity | 25% | 10 | 2.50 |
+| Code Churn | 25% | 10 | 2.50 |
+| Defect Density | 20% | 20 | 4.00 |
+| Class/Function Size | 15% | 40 | 6.00 |
+| Business Logic Duplication | 10% | 45 | 4.50 |
+| Developer Ownership Risk | 5% | 5 | 0.25 |
+| **Hotspot Score** | **100%** | | **20 / 100** |
+
+---
+
+## §2.5 Actions Required
+
+| Hotspot | Action | Rating | Priority |
+|---|---|---|---|
+| H3 — Large Functions | Extract step-loop runner, state-manager, and diagnostic-writer into separate services in both PHP (RealTimeTestService) and Node.js (realtime.js) | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"sev sev-medium\">Medium</span> |
+| H4 — Business Logic Duplication | Create `ReachabilityService` (PHP) and `reachability.js` (dev-api) as single sources of truth; move `buildTree()` to `IvrTreeBuilder`; consolidate serializers | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"sev sev-high\">High</span> |
+| H5 — Duplicate Code (general) | Extract `useMonitorQueries` / `useJobQueries` React hooks and a shared `useModuleInvalidation` helper | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"sev sev-medium\">Medium</span> |
+| H9 — PHP `extract()` Anti-Pattern | Replace all `extract()` calls with explicit variable assignment; add PHPStan ban rule; schedule `LegacyDataMapper` removal | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"sev sev-high\">High</span> |
+| H10 — Unguarded Error Throw | Wrap `LegacyDashboardWidget` in an `<ErrorBoundary>` or replace `throw` with an inline rendered error state | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"sev sev-medium\">Medium</span> |
+
+---
+
+## §2.6 Expected Outcomes
+
+- **Lower defect risk from rule changes:** Consolidating the reachability calculation into a single service means a threshold change (e.g., 90% → 95%) is a one-line edit that propagates automatically to all consumers, eliminating the current class of \"fixed in one place, missed in another\" bugs.
+- **Faster, safer refactors:** Decomposing the oversized `runDiscoveryTest`/`runConnectTest` methods into focused helpers enables isolated unit testing of the step loop, state management, and diagnostics without real database or sleep-delay dependencies.
+- **Elimination of invisible variable injection:** Removing `extract()` from the request path makes data flow explicit and traceable, reducing the surface area for variable-clobbering bugs and simplifying static analysis passes.
+- **Improved UI resilience:** Adding an Error Boundary around `LegacyDashboardWidget` prevents transient API errors from crashing the whole dashboard, giving users a degraded-state fallback instead of a blank screen.
+- **Cleaner onboarding:** Shared hooks (`useMonitorQueries`, `useJobQueries`) and services (`IvrTreeBuilder`, `ReachabilityService`) give new team members clear, single places to learn domain logic rather than hunting across three files for the same formula.
+
+---
+
+The full report — including §2.2 Hotspot-by-Hotspot Evidence with code excerpts, §2.3 Churn tables, and §2.4 Mermaid diagrams — has been saved to `docs/discovery/02-code-quality-complexity.md`. The orchestration UI will convert it to PDF automatically.","stop_reason":"end_turn","session_id":"4cf72b34-42cd-4c1d-9a18-a87e20e2c6fc","total_cost_usd":1.2864836999999998,"usage":{"input_tokens":21,"cache_creation_input_tokens":75998,"cache_read_input_tokens":1148309,"output_tokens":31793,"server_tool_use":{"web_search_requests":0,"web_fetch_requests":0},"service_tier":"standard","cache_creation":{"ephemeral_1h_input_tokens":75998,"ephemeral_5m_input_tokens":0},"inference_geo":"not_available","iterations":[{"input_tokens":1,"output_tokens":2447,"cache_read_input_tokens":96454,"cache_creation_input_tokens":784,"cache_creation":{"ephemeral_5m_input_tokens":0,"ephemeral_1h_input_tokens":784},"type":"message"}],"speed":"standard"},"modelUsage":{"claude-haiku-4-5-20251001":{"inputTokens":8960,"outputTokens":17,"cacheReadInputTokens":0,"cacheCreationInputTokens":0,"webSearchRequests":0,"costUSD":0.009045,"contextWindow":200000,"maxOutputTokens":32000},"claude-sonnet-4-6":{"inputTokens":21,"outputTokens":31793,"cacheReadInputTokens":1148309,"cacheCreationInputTokens":75998,"webSearchRequests":0,"costUSD":1.2774386999999998,"contextWindow":200000,"maxOutputTokens":32000}},"permission_denials":[],"terminal_reason":"completed","fast_mode_state":"off","uuid":"0660eede-1adb-4c40-8afa-644b5b3191fc"}
