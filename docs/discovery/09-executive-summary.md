@@ -1,10 +1,10 @@
 # Discovery Executive Summary
 
-**Project:** test-disocvery · **Generated:** 18/08/2026, 19:03:28
+**Project:** test-disocvery · **Generated:** 18/08/2026, 19:05:06
 
 > **Executive Summary**
 >
-> This report consolidates the overall ratings, key findings, and recommended actions from the 6 discovery analyses run across this codebase (frontend and backend). Each section below reproduces that analysis's executive view; full evidence and diagrams live in the individual reports.
+> This report consolidates the overall ratings, key findings, and recommended actions from the 7 discovery analyses run across this codebase (frontend and backend). Each section below reproduces that analysis's executive view; full evidence and diagrams live in the individual reports.
 
 ## Portfolio Overview
 
@@ -16,6 +16,7 @@
 | 4 | Backend Modernization Analysis | — |
 | 5 | Testing & Quality Assurance Analysis | — |
 | 6 | Security Analysis | — |
+| 7 | Performance & Sustainability Analysis | — |
 
 ---
 
@@ -254,3 +255,50 @@
 | No SAST/Dependency Scanning in CI | Add `composer audit`, `npm audit`, PHPStan, and secret scanning to CI pipeline | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"sev sev-medium\">Medium</span> |
 | Security Logging & Monitoring | Implement audit logging for API access and data changes; configure exception alerting | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"sev sev-medium\">Medium</span> |
 | Frontend HTTP Fallback | Default API URL to HTTPS or require explicit configuration | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"sev sev-medium\">Medium</span> |","stop_reason":"end_turn","session_id":"7c2fa58f-d079-4669-8bbd-3e36f3fa7535","total_cost_usd":2.6981175000000004,"usage":{"input_tokens":21,"cache_creation_input_tokens":113139,"cache_read_input_tokens":1302971,"output_tokens":36234,"server_tool_use":{"web_search_requests":0,"web_fetch_requests":0},"service_tier":"standard","cache_creation":{"ephemeral_1h_input_tokens":113139,"ephemeral_5m_input_tokens":0},"inference_geo":"not_available","iterations":[{"input_tokens":1,"output_tokens":2533,"cache_read_input_tokens":103067,"cache_creation_input_tokens":10072,"cache_creation":{"ephemeral_5m_input_tokens":0,"ephemeral_1h_input_tokens":10072},"type":"message"}],"speed":"standard"},"modelUsage":{"claude-haiku-4-5-20251001":{"inputTokens":9187,"outputTokens":20,"cacheReadInputTokens":0,"cacheCreationInputTokens":0,"webSearchRequests":0,"costUSD":0.009287,"contextWindow":200000,"maxOutputTokens":32000},"claude-opus-4-6":{"inputTokens":21,"outputTokens":36234,"cacheReadInputTokens":1302971,"cacheCreationInputTokens":113139,"webSearchRequests":0,"costUSD":2.6888305,"contextWindow":200000,"maxOutputTokens":64000}},"permission_denials":[],"terminal_reason":"completed","fast_mode_state":"off","uuid":"fb0a4228-a03f-40e0-bc6c-c892c7fb57ca"}
+
+---
+
+## 7. Performance & Sustainability Analysis
+
+> **Executive Summary**
+>
+> The Klearcom platform exhibits **High Risk** performance posture driven by compounding inefficiencies across the stack. The most severe issues are algorithmic: duplicated O(n²) recursive tree traversal in both the PHP backend and Node.js dev API re-scans the full node collection on every recursive call, degrading rapidly as IVR trees grow. API endpoints return unpaginated datasets, the dashboard fires 7–8 separate uncached SQL queries per page load, and SSE streaming re-fetches all historical events from MongoDB every 500 ms instead of using a cursor. Concurrency is critically impaired — all background work runs synchronously in PHP-FPM workers via `usleep` loops with no queue driver configured, limiting concurrent test throughput to the FPM pool size. On the infrastructure side, no Docker containers have resource limits, the CI pipeline recompiles the MongoDB PHP extension from source on every run with no dependency caching, Nginx serves all responses uncompressed, and the frontend ships a Vite dev server as its only runtime mode. Database volumes have no TTL or retention policy, ensuring unbounded storage growth.
+
+## 7.1 Benchmark Ratings Summary
+
+| # | Hotspot | Primary KPI | <span class=\"rating rating-good\">Good</span> | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"rating rating-high-risk\">High Risk</span> | Measured | Rating |
+|---|---|---|---|---|---|---|---|
+| P1 | Algorithm Efficiency | High-complexity algorithm sites | 0 | 1–5 | >5 | 6 (3 PHP + 3 Node.js) | <span class=\"rating rating-high-risk\">High Risk</span> |
+| P2 | Database Performance | Deferred → Backend Modernization (H14/H10) | — | — | — | See Backend Modernization | — (deferred) |
+| P3 | API Performance | Response-latency hotspots | 0 | 1–5 | >5 | 8 | <span class=\"rating rating-high-risk\">High Risk</span> |
+| P4 | Memory Efficiency | High-memory sites | 0 | 1–3 | >3 | 4 | <span class=\"rating rating-high-risk\">High Risk</span> |
+| P5 | CPU Efficiency | CPU-intensive operations on hot paths | 0 | 1–5 | >5 | 3 | <span class=\"rating rating-moderate\">Moderate</span> |
+| P6 | Concurrency | Parallelizable work + pool sizing (blocking-I/O → Backend Modernization H14) | 0 | 1–5 | >5 | 2 (sync dispatch + usleep workers) | <span class=\"rating rating-moderate\">Moderate</span> |
+| P7 | Caching | Deferred → Backend Modernization H14 / Frontend Modernization H11 | — | — | — | See those reports | — (deferred) |
+| P8 | Resource Utilization | Over-provisioned / idle resource configs | 0 | 1–3 | >3 | 5 | <span class=\"rating rating-high-risk\">High Risk</span> |
+| P9 | Network Efficiency | Excessive-traffic sites | 0 | 1–5 | >5 | 5 | <span class=\"rating rating-moderate\">Moderate</span> |
+| P10 | Build Efficiency | Build/test pipeline efficiency | efficient | partial | slow / no caching | slow / no caching | <span class=\"rating rating-high-risk\">High Risk</span> |
+| P11 | Logging Efficiency | Excessive-logging sites | 0 | 1–10 | >10 | 3 (startup-only, low impact) | <span class=\"rating rating-good\">Good</span> |
+| P12 | Sustainability | Resource-optimization posture | optimized | partial | wasteful | wasteful | <span class=\"rating rating-high-risk\">High Risk</span> |
+
+## 7.5 Actions Required
+
+| Hotspot | Action | Rating | Priority |
+|---|---|---|---|
+| P1 Algorithm Efficiency | Replace O(n²) recursive tree builds with single-pass parent-lookup map in both PHP and Node.js; consolidate duplicated implementations | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-critical\">Critical</span> |
+| P3 API Performance | Consolidate dashboard KPIs into 2 cached queries; add pagination to all list endpoints; replace SSE full-refetch with cursor-based incremental query; remove duplicate checks query | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-critical\">Critical</span> |
+| P8 Resource Utilization | Add resource limits and health checks to all containers; create production frontend Dockerfile; bind DB ports to localhost; add Compose profiles | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-critical\">Critical</span> |
+| P10 Build Efficiency | Add CI dependency caching; use setup-php for MongoDB extension; remove npm install fallback; add multi-stage Docker builds and .dockerignore files; bake Composer install into image | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-critical\">Critical</span> |
+| P4 Memory Efficiency | Add cursor offset to streaming event fetch; add column projection to tree queries; cap in-memory arrays in dev API and frontend | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-high\">High</span> |
+| P6 Concurrency | Configure Redis queue driver (Horizon); replace usleep loops with queued jobs with delays | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"sev sev-high\">High</span> |
+| P12 Sustainability | Add MongoDB TTL indexes; implement MariaDB retention policy; create production frontend runtime; add Compose profiles; document data retention | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-high\">High</span> |
+| P5 CPU Efficiency | Track cursor offset to serialize only new events; replace raw setInterval with React Query refetchInterval; memoize formatted timestamps | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"sev sev-medium\">Medium</span> |
+| P9 Network Efficiency | Enable Nginx gzip; reduce polling during SSE streams; simplify MongoDB health check; set CORS max_age to 86400; add upstream keepalive | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"sev sev-medium\">Medium</span> |
+
+## 7.6 Expected Outcomes
+
+- **Lower-complexity algorithms** cut tree-display latency from O(n²) to O(n), enabling IVR trees with hundreds of nodes without degradation.
+- **Cached and paginated API endpoints** reduce dashboard load from 8 SQL queries to 2 (cached), and bound payload sizes to predictable page sizes, cutting median API response times by 50–70%.
+- **Queue-driven test execution** frees PHP-FPM workers from usleep blocking, increasing concurrent test throughput by an order of magnitude and enabling independent scaling of HTTP handling and test processing.
+- **Cursor-based SSE streaming** eliminates redundant MongoDB re-fetches, reducing event-path database load by ~95% per active session and capping memory growth to O(new events) per poll.
+- **Production Docker builds with resource limits, CI caching, and gzip** reduce container image sizes by 60–80%, CI run times by 30–60 seconds per push, and API payload sizes by 60–80%, while preventing resource starvation via container memory/CPU caps.","stop_reason":"end_turn","session_id":"aa1b1e04-ae46-4370-b5db-20aea0014644","total_cost_usd":2.9377666000000002,"usage":{"input_tokens":4324,"cache_creation_input_tokens":97228,"cache_read_input_tokens":729536,"output_tokens":30311,"server_tool_use":{"web_search_requests":0,"web_fetch_requests":0},"service_tier":"standard","cache_creation":{"ephemeral_1h_input_tokens":97228,"ephemeral_5m_input_tokens":0},"inference_geo":"not_available","iterations":[{"input_tokens":1,"output_tokens":2104,"cache_read_input_tokens":97045,"cache_creation_input_tokens":183,"cache_creation":{"ephemeral_5m_input_tokens":0,"ephemeral_1h_input_tokens":183},"type":"message"}],"speed":"standard"},"modelUsage":{"claude-haiku-4-5-20251001":{"inputTokens":9131,"outputTokens":16,"cacheReadInputTokens":0,"cacheCreationInputTokens":0,"webSearchRequests":0,"costUSD":0.009211,"contextWindow":200000,"maxOutputTokens":32000},"claude-opus-4-6":{"inputTokens":4324,"outputTokens":30311,"cacheReadInputTokens":729536,"cacheCreationInputTokens":97228,"webSearchRequests":0,"costUSD":2.1164430000000003,"contextWindow":200000,"maxOutputTokens":64000},"claude-sonnet-4-6":{"inputTokens":29,"outputTokens":18851,"cacheReadInputTokens":586777,"cacheCreationInputTokens":94194,"webSearchRequests":0,"costUSD":0.8121126000000001,"contextWindow":200000,"maxOutputTokens":32000}},"permission_denials":[],"terminal_reason":"completed","fast_mode_state":"off","uuid":"30a5e708-a4fe-42b8-a15f-193704dd6137"}
