@@ -1,10 +1,10 @@
 # Discovery Executive Summary
 
-**Project:** test-disocvery · **Generated:** 18/08/2026, 19:05:06
+**Project:** test-disocvery · **Generated:** 18/08/2026, 19:07:12
 
 > **Executive Summary**
 >
-> This report consolidates the overall ratings, key findings, and recommended actions from the 7 discovery analyses run across this codebase (frontend and backend). Each section below reproduces that analysis's executive view; full evidence and diagrams live in the individual reports.
+> This report consolidates the overall ratings, key findings, and recommended actions from the 8 discovery analyses run across this codebase (frontend and backend). Each section below reproduces that analysis's executive view; full evidence and diagrams live in the individual reports.
 
 ## Portfolio Overview
 
@@ -17,6 +17,7 @@
 | 5 | Testing & Quality Assurance Analysis | — |
 | 6 | Security Analysis | — |
 | 7 | Performance & Sustainability Analysis | — |
+| 8 | Technical Debt | — |
 
 ---
 
@@ -302,3 +303,36 @@
 - **Queue-driven test execution** frees PHP-FPM workers from usleep blocking, increasing concurrent test throughput by an order of magnitude and enabling independent scaling of HTTP handling and test processing.
 - **Cursor-based SSE streaming** eliminates redundant MongoDB re-fetches, reducing event-path database load by ~95% per active session and capping memory growth to O(new events) per poll.
 - **Production Docker builds with resource limits, CI caching, and gzip** reduce container image sizes by 60–80%, CI run times by 30–60 seconds per push, and API payload sizes by 60–80%, while preventing resource starvation via container memory/CPU caps.","stop_reason":"end_turn","session_id":"aa1b1e04-ae46-4370-b5db-20aea0014644","total_cost_usd":2.9377666000000002,"usage":{"input_tokens":4324,"cache_creation_input_tokens":97228,"cache_read_input_tokens":729536,"output_tokens":30311,"server_tool_use":{"web_search_requests":0,"web_fetch_requests":0},"service_tier":"standard","cache_creation":{"ephemeral_1h_input_tokens":97228,"ephemeral_5m_input_tokens":0},"inference_geo":"not_available","iterations":[{"input_tokens":1,"output_tokens":2104,"cache_read_input_tokens":97045,"cache_creation_input_tokens":183,"cache_creation":{"ephemeral_5m_input_tokens":0,"ephemeral_1h_input_tokens":183},"type":"message"}],"speed":"standard"},"modelUsage":{"claude-haiku-4-5-20251001":{"inputTokens":9131,"outputTokens":16,"cacheReadInputTokens":0,"cacheCreationInputTokens":0,"webSearchRequests":0,"costUSD":0.009211,"contextWindow":200000,"maxOutputTokens":32000},"claude-opus-4-6":{"inputTokens":4324,"outputTokens":30311,"cacheReadInputTokens":729536,"cacheCreationInputTokens":97228,"webSearchRequests":0,"costUSD":2.1164430000000003,"contextWindow":200000,"maxOutputTokens":64000},"claude-sonnet-4-6":{"inputTokens":29,"outputTokens":18851,"cacheReadInputTokens":586777,"cacheCreationInputTokens":94194,"webSearchRequests":0,"costUSD":0.8121126000000001,"contextWindow":200000,"maxOutputTokens":32000}},"permission_denials":[],"terminal_reason":"completed","fast_mode_state":"off","uuid":"30a5e708-a4fe-42b8-a15f-193704dd6137"}
+
+---
+
+## 8. Technical Debt
+
+> **Executive Summary**
+>
+> The Klearcom monolithic platform has a sound foundational architecture — Docker Compose orchestration, a GitHub Actions CI pipeline, committed lock files for Node.js packages, and `.env.example` files for both the backend and dev-API. However, several structural gaps collectively lower its agentic-harness readiness. The backend `composer.lock` is not committed, eliminating reproducible PHP dependency installs. No linter, formatter, or pre-commit hook is configured or enforced anywhere in the stack, so code style drifts immediately. Branch-protection artifacts (CODEOWNERS, PR templates, required-checks config) are entirely absent. PHPStan is declared as a dev-dependency but is never wired into CI or any local command. The database uses a single monolithic `init.sql` instead of versioned migrations, and the MariaDB schema has no secondary indexes beyond primary keys. The codebase does ship AI-assistance guides (`AGENTS.md` at root and per-module), positioning it ahead of most repositories for agentic readiness, but the lack of enforced style and a missing `composer.lock` mean agent-authored changes cannot be deterministically verified. The overall verdict is **Moderate** — no single dimension is catastrophically broken, but the cumulative gaps across repository health, development environment, and database hygiene block safe, automated agent workflows today.
+
+## Readiness Benchmark Ratings
+
+| # | Dimension | <span class=\"rating rating-good\">Good</span> | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"rating rating-high-risk\">High Risk</span> | Measured | Rating |
+|---|---|---|---|---|---|---|
+| D1 | Code Repository Health | all checks pass | 1–2 gaps | 3+ gaps / no CI | CI present and runs tests + build; `.gitignore` covers deps and env; Node lock files committed. Gaps: `composer.lock` missing; no CODEOWNERS / PR template. (2 gaps) | <span class=\"rating rating-moderate\">Moderate</span> |
+| D2 | Third-Party Tool Usage | mostly wired & current | some unused/unwired | many unused/unmaintained | 7 of 9 declared packages are actively wired in application code. PHPStan and `dotenv` (dev-api) are declared but not wired into any enforced workflow. | <span class=\"rating rating-moderate\">Moderate</span> |
+| D3 | AI Tool / Agentic Readiness | ready | partial | not ready | Root and per-module `AGENTS.md` files exist. `.kiro/` directory present (mostly empty). Two product modules (Discovery, Connect) form structurally uniform, enumerable units. Missing: enforced style and deterministic PHP builds block safe agent output verification. | <span class=\"rating rating-moderate\">Moderate</span> |
+| D4 | Database Usage | sound | some gaps | no constraints / shared flat schema | Foreign keys present on child tables. Schema uses ENUM constraints and NOT NULL. Gaps: no secondary indexes on MariaDB tables; single monolithic `init.sql` instead of versioned migrations; MongoDB collections lack schema validation. | <span class=\"rating rating-moderate\">Moderate</span> |
+| D5 | Development Environment | reproducible | partial | manual / fragile | Docker Compose present with health checks. `backend/.env.example` and `dev-api/.env.example` present. Gaps: no root or frontend `.env.example`; no linter/formatter/pre-commit hook configured anywhere; `composer.lock` not committed. | <span class=\"rating rating-moderate\">Moderate</span> |
+
+## 8.8 Actions Required
+
+| Gap | Action | Rating | Priority |
+|---|---|---|---|
+| `composer.lock` not committed | Run `composer install` locally to generate `composer.lock`, commit it. CI already runs `composer install` which will then use the lock file for reproducible builds. | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"sev sev-critical\">Critical</span> |
+| No linter or formatter configured | Add ESLint + Prettier for frontend/dev-api and PHP-CS-Fixer (or Laravel Pint) for backend. Add format-check steps to `.github/workflows/ci.yml`. Optionally add a pre-commit hook via Husky. | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"sev sev-critical\">Critical</span> |
+| PHPStan declared but unconfigured | Create `backend/phpstan.neon` at level 5+, add `vendor/bin/phpstan analyse` step to the CI workflow backend job. This gives the codebase static analysis coverage for free since the dependency is already installed. | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"sev sev-high\">High</span> |
+| No branch protection artifacts | Add `.github/CODEOWNERS` mapping `backend/` and `frontend/` to respective owners, add `.github/PULL_REQUEST_TEMPLATE.md`, and configure required status checks + review on `main` via GitHub settings. | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"sev sev-high\">High</span> |
+| No secondary indexes on MariaDB tables | Add indexes on `discovery_jobs(status)`, `discovery_nodes(discovery_job_id)`, `connect_monitors(status, country_code)`, `connect_check_results(connect_monitor_id, checked_at)` to avoid full table scans as data grows. | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"sev sev-high\">High</span> |
+| No migration system — single `init.sql` | Introduce Laravel migrations or a numbered SQL migration runner. Split `init.sql` into per-table migration files with up/down. Add a CI step that applies migrations against a clean database. | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"sev sev-high\">High</span> |
+| Missing `frontend/.env.example` | Create `frontend/.env.example` with `VITE_API_URL=http://localhost:8080/api` to document the required environment variable for standalone frontend development. | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"sev sev-medium\">Medium</span> |
+| MongoDB collections lack schema validation | Add `db.createCollection()` with JSON schema validator rules for `transcripts`, `test_events`, and `call_diagnostics` to prevent malformed documents from being silently accepted. | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"sev sev-medium\">Medium</span> |
+| `discovery_nodes.parent_id` has no FK constraint | Add `FOREIGN KEY (parent_id) REFERENCES discovery_nodes(id) ON DELETE CASCADE` to prevent orphan nodes in the IVR tree structure. | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"sev sev-medium\">Medium</span> |
+| `dotenv` declared but unused in dev-api | Remove `dotenv` from `dev-api/package.json` dependencies since Node 22's `--env-file` flag handles `.env` loading natively. Reduces dependency footprint. | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"sev sev-low\">Low</span> |","stop_reason":"end_turn","session_id":"27fb66b4-f9dc-4f6d-81d4-f69f0dac1954","total_cost_usd":2.3505870000000004,"usage":{"input_tokens":26,"cache_creation_input_tokens":90741,"cache_read_input_tokens":1640360,"output_tokens":24625,"server_tool_use":{"web_search_requests":0,"web_fetch_requests":0},"service_tier":"standard","cache_creation":{"ephemeral_1h_input_tokens":90741,"ephemeral_5m_input_tokens":0},"inference_geo":"not_available","iterations":[{"input_tokens":1,"output_tokens":2392,"cache_read_input_tokens":112156,"cache_creation_input_tokens":446,"cache_creation":{"ephemeral_5m_input_tokens":0,"ephemeral_1h_input_tokens":446},"type":"message"}],"speed":"standard"},"modelUsage":{"claude-haiku-4-5-20251001":{"inputTokens":7137,"outputTokens":21,"cacheReadInputTokens":0,"cacheCreationInputTokens":0,"webSearchRequests":0,"costUSD":0.007242,"contextWindow":200000,"maxOutputTokens":32000},"claude-opus-4-6":{"inputTokens":26,"outputTokens":24625,"cacheReadInputTokens":1640360,"cacheCreationInputTokens":90741,"webSearchRequests":0,"costUSD":2.3433450000000002,"contextWindow":200000,"maxOutputTokens":64000}},"permission_denials":[],"terminal_reason":"completed","fast_mode_state":"off","uuid":"099e6a33-8927-4cda-b9cb-f0cb3bf0754d"}
