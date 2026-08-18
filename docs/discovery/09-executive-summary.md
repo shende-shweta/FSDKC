@@ -1,10 +1,10 @@
 # Discovery Executive Summary
 
-**Project:** test-disocvery · **Generated:** 18/08/2026, 19:01:05
+**Project:** test-disocvery · **Generated:** 18/08/2026, 19:03:28
 
 > **Executive Summary**
 >
-> This report consolidates the overall ratings, key findings, and recommended actions from the 5 discovery analyses run across this codebase (frontend and backend). Each section below reproduces that analysis's executive view; full evidence and diagrams live in the individual reports.
+> This report consolidates the overall ratings, key findings, and recommended actions from the 6 discovery analyses run across this codebase (frontend and backend). Each section below reproduces that analysis's executive view; full evidence and diagrams live in the individual reports.
 
 ## Portfolio Overview
 
@@ -15,6 +15,7 @@
 | 3 | Frontend Modernization Analysis | — |
 | 4 | Backend Modernization Analysis | — |
 | 5 | Testing & Quality Assurance Analysis | — |
+| 6 | Security Analysis | — |
 
 ---
 
@@ -215,3 +216,41 @@
 - **CI catches regressions automatically:** Adding test execution to all three CI jobs (backend, frontend, dev-api) with required status checks means broken code cannot merge.
 - **Contract stability guaranteed:** Contract tests for the 15 API endpoints ensure that backend changes cannot silently break the frontend and that the dev-api stays in sync with production.
 - **Developer confidence restored:** Replacing trivial/flaky tests with meaningful assertions provides an honest signal — green means the application works, red means it doesn't.","stop_reason":"end_turn","session_id":"91232d27-f403-4b5b-8254-08776bfe7e18","total_cost_usd":2.2005325,"usage":{"input_tokens":22,"cache_creation_input_tokens":98355,"cache_read_input_tokens":1159263,"output_tokens":25176,"server_tool_use":{"web_search_requests":0,"web_fetch_requests":0},"service_tier":"standard","cache_creation":{"ephemeral_1h_input_tokens":98355,"ephemeral_5m_input_tokens":0},"inference_geo":"not_available","iterations":[{"input_tokens":1,"output_tokens":1950,"cache_read_input_tokens":97909,"cache_creation_input_tokens":446,"cache_creation":{"ephemeral_5m_input_tokens":0,"ephemeral_1h_input_tokens":446},"type":"message"}],"speed":"standard"},"modelUsage":{"claude-haiku-4-5-20251001":{"inputTokens":7756,"outputTokens":17,"cacheReadInputTokens":0,"cacheCreationInputTokens":0,"webSearchRequests":0,"costUSD":0.007841,"contextWindow":200000,"maxOutputTokens":32000},"claude-opus-4-6":{"inputTokens":22,"outputTokens":25176,"cacheReadInputTokens":1159263,"cacheCreationInputTokens":98355,"webSearchRequests":0,"costUSD":2.1926915,"contextWindow":200000,"maxOutputTokens":64000}},"permission_denials":[],"terminal_reason":"completed","fast_mode_state":"off","uuid":"6b31ae44-04d1-4edd-853d-eb565845f641"}
+
+---
+
+## 6. Security Analysis
+
+> **Executive Summary**
+>
+> The Klearcom platform presents a **High Risk** security posture driven by two critical vulnerabilities and systemic architectural gaps. The most severe finding is the complete absence of authentication or authorization on all 20+ API endpoints — every data-mutating and data-reading route is publicly accessible. A second critical finding is the use of PHP `extract()` on raw HTTP input in the legacy reporting path, which enables variable-injection attacks. Supporting high-severity issues include a fully permissive wildcard CORS policy (backend and dev-API), hardcoded database credentials committed to version control, an unvalidated bulk-import endpoint, and debug mode enabled in the Docker production config. On the positive side, dependency versions are current (Laravel 12, React 19, Vite 6), no known CVEs were found in declared dependencies, and the React frontend is free of XSS sinks (no `dangerouslySetInnerHTML`, `innerHTML`, or `eval` usage). Layers covered: backend (PHP/Laravel), frontend (React/TypeScript SPA), dev-API (Express/Node.js), infrastructure (Docker/nginx/CI).
+
+## 6.1 Security Benchmark Ratings
+
+| # | Security KPI | Target | <span class=\"rating rating-good\">Good</span> | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"rating rating-high-risk\">High Risk</span> | Measured | Rating |
+|---|---|---|---|---|---|---|---|
+| H1 | Critical Vulnerabilities | 0 | 0 | 1 | >1 | 2 | <span class=\"rating rating-high-risk\">High Risk</span> |
+| H2 | High Vulnerabilities | 0 | <5 | 5–10 | >10 | 4 | <span class=\"rating rating-good\">Good</span> |
+| H3 | Medium Vulnerabilities | low | <20 | 20–50 | >50 | 6 | <span class=\"rating rating-good\">Good</span> |
+| H4 | Vulnerability Density | <0.5/KLOC | <0.5 | 0.5–1.0 | >1.0 | 4.0/KLOC | <span class=\"rating rating-high-risk\">High Risk</span> |
+| H5 | OWASP Top 10 Compliance | >95% | >95% | 80–95% | <80% | 30% | <span class=\"rating rating-high-risk\">High Risk</span> |
+| H6 | Critical/High Vulnerable Deps | 0 | 0 | 1 | >1 | 0 | <span class=\"rating rating-good\">Good</span> |
+| H7 | Outdated Dependencies | <10% | <10% | 10–25% | >25% | ~0% | <span class=\"rating rating-good\">Good</span> |
+| H8 | End-of-Life Dependencies | 0 | 0 | 1–5 | >5 | 0 | <span class=\"rating rating-good\">Good</span> |
+
+## 6.5 Actions Required
+
+| Finding | Action | Rating | Priority |
+|---|---|---|---|
+| No Authentication on API Routes | Add auth middleware (Sanctum/JWT) to all routes; implement RBAC and ownership checks | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-critical\">Critical</span> |
+| PHP `extract()` on User Input | Replace `extract()` with explicit variable assignment; add input validation in `LegacyReportController` | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-critical\">Critical</span> |
+| Wildcard CORS Configuration | Restrict `allowed_origins` to explicit frontend domain(s) in both backend and dev-API | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-high\">High</span> |
+| Hardcoded Database Credentials | Move credentials to `.env` / CI secrets; rotate exposed passwords | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-high\">High</span> |
+| Unvalidated Bulk Import Endpoint | Add input validation, array size limits, rate limiting, and authentication | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-high\">High</span> |
+| Debug Mode Enabled | Set `APP_DEBUG=false` in production/Docker configuration | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-high\">High</span> |
+| No Rate Limiting | Add `throttle:api` middleware (Laravel) and `express-rate-limit` (dev-API) | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"sev sev-medium\">Medium</span> |
+| No Security Headers | Configure CSP, HSTS, X-Frame-Options, X-Content-Type-Options in nginx | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"sev sev-medium\">Medium</span> |
+| Exposed Database Ports | Remove host port mappings or bind to 127.0.0.1; enable MongoDB auth | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"sev sev-medium\">Medium</span> |
+| No SAST/Dependency Scanning in CI | Add `composer audit`, `npm audit`, PHPStan, and secret scanning to CI pipeline | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"sev sev-medium\">Medium</span> |
+| Security Logging & Monitoring | Implement audit logging for API access and data changes; configure exception alerting | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"sev sev-medium\">Medium</span> |
+| Frontend HTTP Fallback | Default API URL to HTTPS or require explicit configuration | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"sev sev-medium\">Medium</span> |","stop_reason":"end_turn","session_id":"7c2fa58f-d079-4669-8bbd-3e36f3fa7535","total_cost_usd":2.6981175000000004,"usage":{"input_tokens":21,"cache_creation_input_tokens":113139,"cache_read_input_tokens":1302971,"output_tokens":36234,"server_tool_use":{"web_search_requests":0,"web_fetch_requests":0},"service_tier":"standard","cache_creation":{"ephemeral_1h_input_tokens":113139,"ephemeral_5m_input_tokens":0},"inference_geo":"not_available","iterations":[{"input_tokens":1,"output_tokens":2533,"cache_read_input_tokens":103067,"cache_creation_input_tokens":10072,"cache_creation":{"ephemeral_5m_input_tokens":0,"ephemeral_1h_input_tokens":10072},"type":"message"}],"speed":"standard"},"modelUsage":{"claude-haiku-4-5-20251001":{"inputTokens":9187,"outputTokens":20,"cacheReadInputTokens":0,"cacheCreationInputTokens":0,"webSearchRequests":0,"costUSD":0.009287,"contextWindow":200000,"maxOutputTokens":32000},"claude-opus-4-6":{"inputTokens":21,"outputTokens":36234,"cacheReadInputTokens":1302971,"cacheCreationInputTokens":113139,"webSearchRequests":0,"costUSD":2.6888305,"contextWindow":200000,"maxOutputTokens":64000}},"permission_denials":[],"terminal_reason":"completed","fast_mode_state":"off","uuid":"fb0a4228-a03f-40e0-bc6c-c892c7fb57ca"}
