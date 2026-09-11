@@ -122,7 +122,7 @@ class MongoService
         return array_map([$this, 'serializeDocument'], iterator_to_array($cursor));
     }
 
-    public function getTestEvents(string $sessionId): array
+    public function getTestEvents(string $sessionId, int $skip = 0): array
     {
         if ($this->testEvents === null) {
             return [];
@@ -130,7 +130,7 @@ class MongoService
 
         $cursor = $this->testEvents->find(
             ['session_id' => $sessionId],
-            ['sort' => ['created_at' => 1]]
+            ['sort' => ['created_at' => 1], 'skip' => $skip]
         );
 
         return array_map([$this, 'serializeDocument'], iterator_to_array($cursor));
