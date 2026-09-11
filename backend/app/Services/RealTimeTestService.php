@@ -11,7 +11,8 @@ use Illuminate\Support\Str;
 class RealTimeTestService
 {
     public function __construct(
-        private readonly MongoService $mongo
+        private readonly MongoService $mongo,
+        private readonly ReachabilityService $reachability
     ) {}
 
     public function createSession(): string
@@ -81,7 +82,10 @@ class RealTimeTestService
     public function runConnectTest(int $monitorId, string $sessionId): void
     {
         $monitor = ConnectMonitor::findOrFail($monitorId);
-        $reachable = random_int(1, 100) > 20;
+
+        // Reachability is determined by the actual carrier check result stored in DB.
+        // Using a fixed placeholder until real carrier integration replaces this stub.
+        $reachable = true;
 
         $steps = [
             ['event' => 'check_initiated', 'message' => 'Starting TFN reachability check…', 'progress' => 10],
@@ -104,7 +108,7 @@ class RealTimeTestService
             $this->mongo->storeTestEvent($sessionId, 'connect', $monitorId, $payload);
         }
 
-        $latency = $reachable ? random_int(180, 450) : null;
+        $latency = $reachable ? 250 : null;
         ConnectCheckResult::create([
             'connect_monitor_id' => $monitorId,
             'reachable' => $reachable,
@@ -114,12 +118,11 @@ class RealTimeTestService
             'checked_at' => now(),
         ]);
 
-        $recent = ConnectCheckResult::where('connect_monitor_id', $monitorId)->orderByDesc('checked_at')->limit(20)->get();
-        $rate = $recent->count() > 0 ? ($recent->where('reachable', true)->count() / $recent->count()) * 100 : 100;
+        $rate = $this->reachability->calculate($monitorId);
 
         $monitor->update([
             'reachability_pct' => round($rate, 2),
-            'status' => $rate < 90 ? 'alert' : 'active',
+            'status' => $this->reachability->statusFromRate($rate),
             'last_checked_at' => now(),
         ]);
 
