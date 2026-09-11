@@ -8,13 +8,11 @@ import {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-// Mirrors ReachabilityService::ALERT_THRESHOLD in the PHP backend.
-// Update both locations if the threshold changes.
 const ALERT_THRESHOLD = 90;
 
 const DISCOVERY_STEPS = [
-  { event: 'call_initiated', message: 'Placing test call to IVR endpoint\u2026', progress: 10 },
-  { event: 'call_connected', message: 'Call connected \u2014 analyzing audio stream', progress: 20 },
+  { event: 'call_initiated', message: 'Placing test call to IVR endpoint…', progress: 10 },
+  { event: 'call_connected', message: 'Call connected — analyzing audio stream', progress: 20 },
   { event: 'prompt_detected', message: 'Welcome prompt detected', transcript: 'Welcome. Press 1 for accounts, 2 for support.', progress: 35 },
   { event: 'dtmf_sent', message: 'Sending DTMF: 1', dtmf: '1', progress: 45 },
   { event: 'dtmf_recognized', message: 'DTMF input recognized', dtmf: '1', progress: 55 },
@@ -25,11 +23,11 @@ const DISCOVERY_STEPS = [
 ];
 
 const CONNECT_STEPS = [
-  { event: 'check_initiated', message: 'Starting TFN reachability check\u2026', progress: 10 },
+  { event: 'check_initiated', message: 'Starting TFN reachability check…', progress: 10 },
   { event: 'dns_lookup', message: 'Resolving toll-free routing tables', progress: 25 },
   { event: 'carrier_selected', message: 'Carrier route selected', progress: 40 },
   { event: 'sip_invite', message: 'Sending SIP INVITE to carrier gateway', progress: 55 },
-  { event: 'ringing', message: 'Remote endpoint ringing\u2026', progress: 70 },
+  { event: 'ringing', message: 'Remote endpoint ringing…', progress: 70 },
   { event: 'media_negotiation', message: 'RTP media stream established', progress: 85 },
   { event: 'quality_analysis', message: 'Running MOS & latency analysis', progress: 95 },
   { event: 'check_complete', message: 'Reachability check complete', progress: 100 },
@@ -99,7 +97,7 @@ export async function runDiscoveryTest(jobId, sessionId) {
   await storeTestEvent(sessionId, 'discovery', jobId, {
     type: 'complete',
     status: 'completed',
-    message: `Discovery finished \u2014 ${job.nodes_discovered} nodes mapped`,
+    message: `Discovery finished — ${job.nodes_discovered} nodes mapped`,
     progress: 100,
     nodes_discovered: job.nodes_discovered,
   });
@@ -116,8 +114,6 @@ export async function runConnectTest(monitorId, sessionId) {
     progress: 0,
   });
 
-  // Dev-API simulates real-world carrier variability with random reachability.
-  // The PHP backend does not write a check result until real carrier integration lands.
   const reachable = Math.random() > 0.2;
 
   for (const step of CONNECT_STEPS) {
