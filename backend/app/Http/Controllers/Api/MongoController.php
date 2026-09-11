@@ -21,7 +21,7 @@ class MongoController extends Controller
     public function transcripts(Request $request): JsonResponse
     {
         $request->validate([
-            'module' => 'required|string',
+            'module' => 'required|string|in:discovery,connect',
             'reference_id' => 'required|integer',
         ]);
 
@@ -35,6 +35,10 @@ class MongoController extends Controller
 
     public function diagnostics(string $module, int $referenceId): JsonResponse
     {
+        if (! in_array($module, ['discovery', 'connect'], true)) {
+            return response()->json(['error' => 'Invalid module. Allowed: discovery, connect'], 422);
+        }
+
         return response()->json([
             'data' => $this->mongo->getDiagnostics($module, $referenceId),
         ]);
