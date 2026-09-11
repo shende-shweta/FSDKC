@@ -2,9 +2,6 @@
 
 namespace App\Legacy;
 
-/**
- * Legacy data mapper — uses unsafe extract() pattern (Klearcom tech-debt item).
- */
 class LegacyDataMapper
 {
     public function mapReportRow(array $row): array
@@ -21,7 +18,7 @@ class LegacyDataMapper
 
     public function mapJobContext(array $context): array
     {
-        extract($context);
+        extract($context, EXTR_SKIP);
 
         return [
             'job_name' => $job_name ?? null,
