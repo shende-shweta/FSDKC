@@ -9,6 +9,7 @@ use App\Services\MongoService;
 use App\Services\RealTimeTestService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+
 class DiscoveryController extends Controller
 {
     public function __construct(
@@ -27,9 +28,10 @@ class DiscoveryController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'phone_number' => 'required|string|max:50',
-            'country_code' => 'required|string|max:5',
+            'phone_number' => ['required', 'string', 'max:50', 'regex:/^\+?[1-9]\d{1,14}$/'],
+            'country_code' => ['required', 'string', 'max:5', 'regex:/^[A-Z]{2,3}$/'],
             'languages' => 'array',
+            'languages.*' => 'string|regex:/^[a-z]{2,3}$/',
         ]);
 
         $job = DiscoveryJob::create([
