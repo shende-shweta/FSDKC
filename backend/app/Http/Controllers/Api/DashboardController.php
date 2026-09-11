@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\ConnectCheckResult;
 use App\Models\ConnectMonitor;
 use App\Models\DiscoveryJob;
 use Illuminate\Http\JsonResponse;
@@ -13,9 +14,13 @@ class DashboardController extends Controller
     {
         $discoveryTotal = DiscoveryJob::count();
         $discoveryCompleted = DiscoveryJob::where('status', 'completed')->count();
-        $connectMonitors = ConnectMonitor::count();
         $avgReachability = ConnectMonitor::avg('reachability_pct') ?? 0;
         $alerts = ConnectMonitor::where('status', 'alert')->count();
+
+        $recentChecks = ConnectCheckResult::orderByDesc('checked_at')->limit(100)->get();
+        $callSuccessRate = $recentChecks->isNotEmpty()
+            ? round(($recentChecks->where('reachable', true)->count() / $recentChecks->count()) * 100, 1)
+            : null;
 
         return response()->json([
             'availability' => [
@@ -23,8 +28,8 @@ class DashboardController extends Controller
                     ? round(($discoveryCompleted / $discoveryTotal) * 100, 1)
                     : 0,
                 'number_reachability_pct' => round((float) $avgReachability, 1),
-                'call_success_rate_pct' => 94.2,
-                'transfer_success_rate_pct' => 97.8,
+                'call_success_rate_pct' => $callSuccessRate,
+                'transfer_success_rate_pct' => null,
             ],
             'operational' => [
                 'active_discovery_jobs' => DiscoveryJob::where('status', 'running')->count(),
