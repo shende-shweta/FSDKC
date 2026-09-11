@@ -28,8 +28,8 @@ class ConnectController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'toll_free_number' => 'required|string|max:50',
-            'country_code' => 'required|string|max:5',
+            'toll_free_number' => ['required', 'string', 'max:50', 'regex:/^\+?[1-9]\d{1,14}$/'],
+            'country_code' => ['required', 'string', 'max:5', 'regex:/^[A-Z]{2,3}$/'],
             'carrier' => 'nullable|string|max:100',
         ]);
 
@@ -62,7 +62,6 @@ class ConnectController extends Controller
             ->limit(50)
             ->get();
 
-        // Duplicate reachability calculation block (also in RealTimeTestService / dev-api realtime.js)
         $recentChecks = ConnectCheckResult::where('connect_monitor_id', $id)
             ->orderByDesc('checked_at')
             ->limit(20)
