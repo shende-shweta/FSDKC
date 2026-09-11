@@ -14,10 +14,15 @@ import { createSession, runConnectTest, runDiscoveryTest } from './realtime.js';
 const PORT = process.env.PORT || 8080;
 const app = express();
 
-app.use(cors());
+const allowedOrigins = (process.env.CORS_ALLOWED_ORIGINS ?? 'http://localhost:5173')
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+app.use(cors({ origin: allowedOrigins }));
 app.use(express.json());
 
-// ── Health & MongoDB ──────────────────────────────────────────────
+// \u2500\u2500 Health & MongoDB \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 
 app.get('/api/health', async (_req, res) => {
   const mongo = await healthCheck();
@@ -53,20 +58,23 @@ app.get('/api/mongodb/diagnostics/:module/:referenceId', async (req, res) => {
   res.json({ data: data.map(serializeDoc) });
 });
 
-// ── Dashboard ───────────────────────────────────────────────────
+// \u2500\u2500 Dashboard \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 
 app.get('/api/dashboard/kpis', async (_req, res) => {
   const discoveryTotal = store.discoveryJobs.length;
   const discoveryCompleted = store.discoveryJobs.filter((j) => j.status === 'completed').length;
-  const avgReach = store.connectMonitors.reduce((s, m) => s + m.reachability_pct, 0) / store.connectMonitors.length;
+  const avgReach =
+    store.connectMonitors.length > 0
+      ? store.connectMonitors.reduce((s, m) => s + m.reachability_pct, 0) / store.connectMonitors.length
+      : 0;
   const mongo = await healthCheck();
 
   res.json({
     availability: {
       ivr_availability_pct: discoveryTotal > 0 ? Math.round((discoveryCompleted / discoveryTotal) * 1000) / 10 : 0,
       number_reachability_pct: Math.round(avgReach * 10) / 10,
-      call_success_rate_pct: 94.2,
-      transfer_success_rate_pct: 97.8,
+      call_success_rate_pct: null,
+      transfer_success_rate_pct: null,
     },
     operational: {
       active_discovery_jobs: store.discoveryJobs.filter((j) => j.status === 'running').length,
@@ -79,7 +87,7 @@ app.get('/api/dashboard/kpis', async (_req, res) => {
   });
 });
 
-// ── Discovery ─────────────────────────────────────────────────────
+// \u2500\u2500 Discovery \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 
 app.get('/api/discovery/jobs', (_req, res) => {
   res.json({ data: store.discoveryJobs });
@@ -129,7 +137,7 @@ app.post('/api/discovery/jobs/:id/start', async (req, res) => {
   const sessionId = createSession();
   runDiscoveryTest(jobId, sessionId).catch(console.error);
 
-  res.json({ session_id: sessionId, message: 'Discovery test started — connect to stream endpoint' });
+  res.json({ session_id: sessionId, message: 'Discovery test started \u2014 connect to stream endpoint' });
 });
 
 app.get('/api/discovery/jobs/:id/stream', (req, res) => {
@@ -138,11 +146,25 @@ app.get('/api/discovery/jobs/:id/stream', (req, res) => {
   streamSession(res, req, sessionId);
 });
 
-// ── Connect ───────────────────────────────────────────────────────
+// \u2500\u2500 Connect \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 
+// Security audit finding: no authentication, rate limiting, or schema enforcement on this endpoint.
+// TODO: add express-rate-limit and Zod/joi validation before production use.
 app.post('/api/connect/monitors/bulk-import', (req, res) => {
-  // No validation, no rate limiting — accepts arbitrary body (security audit finding)
-  const items = Array.isArray(req.body) ? req.body : req.body?.monitors ?? [];
+  const raw = Array.isArray(req.body) ? req.body : req.body?.monitors ?? [];
+
+  if (raw.length > 500) {
+    return res.status(400).json({ error: 'Bulk import limited to 500 items per request' });
+  }
+
+  const items = raw.filter(
+    (item) => typeof item === 'object' && item !== null && typeof item.toll_free_number === 'string'
+  );
+
+  if (items.length === 0 && raw.length > 0) {
+    return res.status(400).json({ error: 'No valid items \u2014 each item requires toll_free_number (string)' });
+  }
+
   const created = items.map((item) => {
     const monitor = {
       id: store.nextMonitorId++,
@@ -209,7 +231,7 @@ app.post('/api/connect/monitors/:id/run-check', async (req, res) => {
   const sessionId = createSession();
   runConnectTest(monitorId, sessionId).catch(console.error);
 
-  res.json({ session_id: sessionId, message: 'Connect test started — connect to stream endpoint' });
+  res.json({ session_id: sessionId, message: 'Connect test started \u2014 connect to stream endpoint' });
 });
 
 app.get('/api/connect/monitors/:id/stream', (req, res) => {
@@ -218,7 +240,7 @@ app.get('/api/connect/monitors/:id/stream', (req, res) => {
   streamSession(res, req, sessionId);
 });
 
-// ── Helpers ───────────────────────────────────────────────────────
+// \u2500\u2500 Helpers \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 
 function serializeDoc(doc) {
   if (!doc) return doc;
@@ -263,7 +285,7 @@ async function streamSession(res, req, sessionId) {
   req.on('close', () => clearInterval(poll));
 }
 
-// ── Boot ──────────────────────────────────────────────────────────
+// \u2500\u2500 Boot \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 
 await connectMongo();
 await seedMongoData();
@@ -271,6 +293,6 @@ await seedMongoData();
 const dbInfo = getDbInfo();
 app.listen(PORT, () => {
   console.log(`Klearcom dev API running on http://localhost:${PORT}`);
-  console.log(`MongoDB: ${dbInfo.mode} → ${dbInfo.name}`);
+  console.log(`MongoDB: ${dbInfo.mode} \u2192 ${dbInfo.name}`);
   console.log(`Health: http://localhost:${PORT}/api/health`);
 });

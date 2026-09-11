@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FormEvent, useState } from 'react';
 import { api } from '../api/client';
+import { endpoints } from '../api/endpoints';
 import LiveTestFeed from '../components/LiveTestFeed';
 import { useRealtimeTest } from '../hooks/useRealtimeTest';
 import { useUiStore } from '../store/uiStore';
@@ -17,26 +18,26 @@ export default function DiscoveryPage() {
 
   const jobsQuery = useQuery({
     queryKey: ['discovery', 'jobs'],
-    queryFn: () => api.get<{ data: DiscoveryJob[] }>('/discovery/jobs'),
+    queryFn: () => api.get<{ data: DiscoveryJob[] }>(endpoints.discovery.jobs),
     refetchInterval: isRunning ? 2000 : false,
   });
 
   const treeQuery = useQuery({
     queryKey: ['discovery', 'tree', selectedId],
-    queryFn: () => api.get<{ tree: DiscoveryNode[] }>(`/discovery/jobs/${selectedId}/tree`),
+    queryFn: () => api.get<{ tree: DiscoveryNode[] }>(endpoints.discovery.tree(selectedId!)),
     enabled: selectedId !== null,
     refetchInterval: isRunning ? 2000 : false,
   });
 
   const transcriptsQuery = useQuery({
     queryKey: ['mongodb', 'transcripts', 'discovery', selectedId],
-    queryFn: () => api.get<{ data: Transcript[] }>(`/mongodb/transcripts?module=discovery&reference_id=${selectedId}`),
+    queryFn: () => api.get<{ data: Transcript[] }>(endpoints.mongodb.transcripts('discovery', selectedId!)),
     enabled: selectedId !== null,
     refetchInterval: isRunning ? 1500 : false,
   });
 
   const createMutation = useMutation({
-    mutationFn: (body: typeof form) => api.post('/discovery/jobs', { ...body, languages: ['en'] }),
+    mutationFn: (body: typeof form) => api.post(endpoints.discovery.jobs, { ...body, languages: ['en'] }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['discovery'] });
       setForm({ name: '', phone_number: '', country_code: 'US' });
@@ -83,13 +84,13 @@ export default function DiscoveryPage() {
             </div>
           </div>
           <button type="submit" className="btn btn-primary" disabled={createMutation.isPending}>
-            {createMutation.isPending ? 'Creating…' : 'Create Job'}
+            {createMutation.isPending ? 'Creating\u2026' : 'Create Job'}
           </button>
         </form>
       </section>
 
       <section style={{ marginBottom: '1.5rem' }}>
-        <LiveTestFeed events={events} isRunning={isRunning} progress={progress} title="Discovery — Live IVR Test" />
+        <LiveTestFeed events={events} isRunning={isRunning} progress={progress} title="Discovery \u2014 Live IVR Test" />
       </section>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
@@ -98,7 +99,7 @@ export default function DiscoveryPage() {
             <strong>Discovery Jobs</strong>
           </div>
           {jobsQuery.isLoading ? (
-            <div className="empty">Loading…</div>
+            <div className="empty">Loading\u2026</div>
           ) : (
             <table>
               <thead>
@@ -129,7 +130,7 @@ export default function DiscoveryPage() {
                           disabled={isRunning}
                           onClick={(e) => { e.stopPropagation(); handleStart(job.id); }}
                         >
-                          {isRunning && selectedId === job.id ? 'Running…' : 'Start Test'}
+                          {isRunning && selectedId === job.id ? 'Running\u2026' : 'Start Test'}
                         </button>
                       )}
                     </td>
@@ -147,11 +148,11 @@ export default function DiscoveryPage() {
           {!selectedId ? (
             <div className="empty">Select a job to view its IVR tree</div>
           ) : treeQuery.isLoading ? (
-            <div className="empty">Loading tree…</div>
+            <div className="empty">Loading tree\u2026</div>
           ) : treeQuery.data?.tree.length ? (
             <IvrTree nodes={treeQuery.data.tree} />
           ) : (
-            <div className="empty">No nodes yet — run a discovery test</div>
+            <div className="empty">No nodes yet \u2014 run a discovery test</div>
           )}
         </section>
       </div>

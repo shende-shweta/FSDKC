@@ -8,6 +8,8 @@ import {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+const ALERT_THRESHOLD = 90;
+
 const DISCOVERY_STEPS = [
   { event: 'call_initiated', message: 'Placing test call to IVR endpoint…', progress: 10 },
   { event: 'call_connected', message: 'Call connected — analyzing audio stream', progress: 20 },
@@ -149,7 +151,7 @@ export async function runConnectTest(monitorId, sessionId) {
     : 100;
 
   monitor.reachability_pct = Math.round(successRate * 100) / 100;
-  monitor.status = successRate < 90 ? 'alert' : 'active';
+  monitor.status = successRate < ALERT_THRESHOLD ? 'alert' : 'active';
   monitor.last_checked_at = check.checked_at;
 
   await storeTranscript('connect', monitorId, {

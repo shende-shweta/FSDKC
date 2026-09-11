@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use App\Models\ConnectCheckResult;
 use App\Models\ConnectMonitor;
 use App\Models\DiscoveryJob;
 use App\Models\DiscoveryNode;
@@ -11,7 +10,8 @@ use Illuminate\Support\Str;
 class RealTimeTestService
 {
     public function __construct(
-        private readonly MongoService $mongo
+        private readonly MongoService $mongo,
+        private readonly ReachabilityService $reachability
     ) {}
 
     public function createSession(): string
@@ -25,8 +25,8 @@ class RealTimeTestService
         $job->update(['status' => 'running', 'started_at' => now()]);
 
         $steps = [
-            ['event' => 'call_initiated', 'message' => 'Placing test call to IVR endpoint…', 'progress' => 10],
-            ['event' => 'call_connected', 'message' => 'Call connected — analyzing audio stream', 'progress' => 20],
+            ['event' => 'call_initiated', 'message' => 'Placing test call to IVR endpoint\u2026', 'progress' => 10],
+            ['event' => 'call_connected', 'message' => 'Call connected \u2014 analyzing audio stream', 'progress' => 20],
             ['event' => 'prompt_detected', 'message' => 'Welcome prompt detected', 'transcript' => 'Welcome. Press 1 for accounts.', 'progress' => 35],
             ['event' => 'dtmf_sent', 'message' => 'Sending DTMF: 1', 'dtmf' => '1', 'progress' => 45],
             ['event' => 'menu_discovered', 'message' => 'Sub-menu mapped', 'node_type' => 'menu', 'progress' => 70],
@@ -74,17 +74,16 @@ class RealTimeTestService
 
         $this->mongo->storeTestEvent($sessionId, 'discovery', $jobId, [
             'type' => 'complete', 'status' => 'completed',
-            'message' => "Discovery finished — {$nodeCount} nodes mapped", 'progress' => 100,
+            'message' => "Discovery finished \u2014 {$nodeCount} nodes mapped", 'progress' => 100,
         ]);
     }
 
     public function runConnectTest(int $monitorId, string $sessionId): void
     {
         $monitor = ConnectMonitor::findOrFail($monitorId);
-        $reachable = random_int(1, 100) > 20;
 
         $steps = [
-            ['event' => 'check_initiated', 'message' => 'Starting TFN reachability check…', 'progress' => 10],
+            ['event' => 'check_initiated', 'message' => 'Starting TFN reachability check\u2026', 'progress' => 10],
             ['event' => 'carrier_selected', 'message' => 'Carrier route selected', 'progress' => 40],
             ['event' => 'sip_invite', 'message' => 'Sending SIP INVITE', 'progress' => 55],
             ['event' => 'quality_analysis', 'message' => 'Running MOS analysis', 'progress' => 95],
@@ -97,45 +96,33 @@ class RealTimeTestService
 
         foreach ($steps as $step) {
             usleep(500_000);
-            $payload = ['type' => 'step', ...$step];
-            if ($step['event'] === 'check_complete') {
-                $payload['reachable'] = $reachable;
-            }
-            $this->mongo->storeTestEvent($sessionId, 'connect', $monitorId, $payload);
+            $this->mongo->storeTestEvent($sessionId, 'connect', $monitorId, ['type' => 'step', ...$step]);
         }
 
-        $latency = $reachable ? random_int(180, 450) : null;
-        ConnectCheckResult::create([
-            'connect_monitor_id' => $monitorId,
-            'reachable' => $reachable,
-            'latency_ms' => $latency,
-            'carrier_route' => $monitor->carrier ? "{$monitor->country_code} -> {$monitor->carrier} SIP" : null,
-            'failure_reason' => $reachable ? null : 'Carrier routing failure',
-            'checked_at' => now(),
-        ]);
+        // No ConnectCheckResult written here \u2014 real carrier integration is pending.
+        // Rate is computed solely from previously stored real check results.
+        $rate = $this->reachability->calculate($monitorId);
 
-        $recent = ConnectCheckResult::where('connect_monitor_id', $monitorId)->orderByDesc('checked_at')->limit(20)->get();
-        $rate = $recent->count() > 0 ? ($recent->where('reachable', true)->count() / $recent->count()) * 100 : 100;
-
-        $monitor->update([
-            'reachability_pct' => round($rate, 2),
-            'status' => $rate < 90 ? 'alert' : 'active',
+        $update = [
+            'status' => $this->reachability->statusFromRate($rate),
             'last_checked_at' => now(),
-        ]);
+        ];
+        if ($rate !== null) {
+            $update['reachability_pct'] = round($rate, 2);
+        }
+        $monitor->update($update);
 
         $this->mongo->storeTranscript('connect', $monitorId, [
-            'event' => $reachable ? 'reachability_check_passed' : 'reachability_check_failed',
+            'event' => 'stub_check_run',
             'session_id' => $sessionId,
-            'latency_ms' => $latency,
+            'note' => 'No carrier probe executed \u2014 real integration pending',
         ]);
 
         $this->mongo->storeTestEvent($sessionId, 'connect', $monitorId, [
             'type' => 'complete',
-            'status' => $reachable ? 'reachable' : 'failed',
-            'message' => $reachable ? 'TFN is reachable' : 'TFN check failed',
+            'status' => $this->reachability->statusFromRate($rate),
+            'message' => 'Stub check complete \u2014 no carrier probe executed',
             'progress' => 100,
-            'reachable' => $reachable,
-            'latency_ms' => $latency,
         ]);
     }
 }

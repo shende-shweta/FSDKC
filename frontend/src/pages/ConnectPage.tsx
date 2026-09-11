@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FormEvent, useState } from 'react';
 import { api } from '../api/client';
+import { endpoints } from '../api/endpoints';
 import LiveTestFeed from '../components/LiveTestFeed';
 import { useRealtimeTest } from '../hooks/useRealtimeTest';
 import { useUiStore } from '../store/uiStore';
@@ -21,26 +22,26 @@ export default function ConnectPage() {
 
   const monitorsQuery = useQuery({
     queryKey: ['connect', 'monitors'],
-    queryFn: () => api.get<{ data: ConnectMonitor[] }>('/connect/monitors'),
+    queryFn: () => api.get<{ data: ConnectMonitor[] }>(endpoints.connect.monitors),
     refetchInterval: isRunning ? 2000 : false,
   });
 
   const checksQuery = useQuery({
     queryKey: ['connect', 'checks', selectedId],
-    queryFn: () => api.get<{ data: ConnectCheckResult[] }>(`/connect/monitors/${selectedId}/checks`),
+    queryFn: () => api.get<{ data: ConnectCheckResult[] }>(endpoints.connect.checks(selectedId!)),
     enabled: selectedId !== null,
     refetchInterval: isRunning ? 2000 : false,
   });
 
   const transcriptsQuery = useQuery({
     queryKey: ['mongodb', 'transcripts', 'connect', selectedId],
-    queryFn: () => api.get<{ data: Transcript[] }>(`/mongodb/transcripts?module=connect&reference_id=${selectedId}`),
+    queryFn: () => api.get<{ data: Transcript[] }>(endpoints.mongodb.transcripts('connect', selectedId!)),
     enabled: selectedId !== null,
     refetchInterval: isRunning ? 1500 : false,
   });
 
   const createMutation = useMutation({
-    mutationFn: (body: typeof form) => api.post('/connect/monitors', body),
+    mutationFn: (body: typeof form) => api.post(endpoints.connect.monitors, body),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['connect'] });
       setForm({ name: '', toll_free_number: '', country_code: 'US', carrier: '' });
@@ -91,13 +92,13 @@ export default function ConnectPage() {
             </div>
           </div>
           <button type="submit" className="btn btn-primary" disabled={createMutation.isPending}>
-            {createMutation.isPending ? 'Adding…' : 'Add Monitor'}
+            {createMutation.isPending ? 'Adding\u2026' : 'Add Monitor'}
           </button>
         </form>
       </section>
 
       <section style={{ marginBottom: '1.5rem' }}>
-        <LiveTestFeed events={events} isRunning={isRunning} progress={progress} title="Connect — Live Reachability Test" />
+        <LiveTestFeed events={events} isRunning={isRunning} progress={progress} title="Connect \u2014 Live Reachability Test" />
       </section>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
@@ -106,7 +107,7 @@ export default function ConnectPage() {
             <strong>TFN Monitors</strong>
           </div>
           {monitorsQuery.isLoading ? (
-            <div className="empty">Loading…</div>
+            <div className="empty">Loading\u2026</div>
           ) : (
             <table>
               <thead>
@@ -127,10 +128,12 @@ export default function ConnectPage() {
                     <td>
                       <div>{m.name}</div>
                       <div style={{ fontSize: '0.8rem', color: 'var(--muted)' }}>
-                        {m.toll_free_number} · {m.country_code}
+                        {m.toll_free_number} \u00b7 {m.country_code}
                       </div>
                     </td>
-                    <td style={{ fontVariantNumeric: 'tabular-nums' }}>{m.reachability_pct}%</td>
+                    <td style={{ fontVariantNumeric: 'tabular-nums' }}>
+                      {m.reachability_pct != null ? `${m.reachability_pct}%` : '\u2014'}
+                    </td>
                     <td><span className={`badge badge-${m.status}`}>{m.status}</span></td>
                     <td>
                       <button
@@ -138,7 +141,7 @@ export default function ConnectPage() {
                         disabled={isRunning}
                         onClick={(e) => { e.stopPropagation(); handleRunCheck(m.id); }}
                       >
-                        {isRunning && selectedId === m.id ? 'Testing…' : 'Run Test'}
+                        {isRunning && selectedId === m.id ? 'Testing\u2026' : 'Run Test'}
                       </button>
                     </td>
                   </tr>
@@ -160,7 +163,7 @@ export default function ConnectPage() {
           {!selectedId ? (
             <div className="empty">Select a monitor to view check history</div>
           ) : checksQuery.isLoading ? (
-            <div className="empty">Loading checks…</div>
+            <div className="empty">Loading checks\u2026</div>
           ) : checksQuery.data?.data.length ? (
             <table>
               <thead>
@@ -184,8 +187,8 @@ export default function ConnectPage() {
                         </div>
                       )}
                     </td>
-                    <td>{c.latency_ms ? `${c.latency_ms}ms` : '—'}</td>
-                    <td style={{ fontSize: '0.8rem' }}>{c.carrier_route ?? '—'}</td>
+                    <td>{c.latency_ms ? `${c.latency_ms}ms` : '\u2014'}</td>
+                    <td style={{ fontSize: '0.8rem' }}>{c.carrier_route ?? '\u2014'}</td>
                     <td style={{ fontSize: '0.8rem', color: 'var(--muted)' }}>
                       {new Date(c.checked_at).toLocaleString()}
                     </td>
@@ -209,7 +212,7 @@ export default function ConnectPage() {
               <div key={t._id} className="transcript-item">
                 <div className="event-type">{String(t.payload?.event ?? 'transcript')}</div>
                 <div>
-                  {t.payload?.latency_ms != null && `Latency: ${t.payload.latency_ms}ms · `}
+                  {t.payload?.latency_ms != null && `Latency: ${t.payload.latency_ms}ms \u00b7 `}
                   {String(t.payload?.failure_reason ?? t.payload?.carrier_route ?? '')}
                 </div>
               </div>

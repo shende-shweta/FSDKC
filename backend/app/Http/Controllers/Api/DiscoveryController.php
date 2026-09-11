@@ -7,13 +7,16 @@ use App\Models\DiscoveryJob;
 use App\Models\DiscoveryNode;
 use App\Services\MongoService;
 use App\Services\RealTimeTestService;
+use App\Services\TreeBuilderService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+
 class DiscoveryController extends Controller
 {
     public function __construct(
         private readonly MongoService $mongo,
-        private readonly RealTimeTestService $realtime
+        private readonly RealTimeTestService $realtime,
+        private readonly TreeBuilderService $tree
     ) {}
 
     public function index(): JsonResponse
@@ -60,7 +63,7 @@ class DiscoveryController extends Controller
         return response()->json([
             'job_id' => $job->id,
             'job_name' => $job->name,
-            'tree' => $this->buildTree($nodes),
+            'tree' => $this->tree->build($nodes),
         ]);
     }
 
@@ -80,23 +83,7 @@ class DiscoveryController extends Controller
 
         return response()->json([
             'session_id' => $sessionId,
-            'message' => 'Discovery test started — connect to stream endpoint',
+            'message' => 'Discovery test started \u2014 connect to stream endpoint',
         ]);
-    }
-
-    private function buildTree($nodes, ?int $parentId = null): array
-    {
-        return $nodes
-            ->where('parent_id', $parentId)
-            ->map(fn (DiscoveryNode $node) => [
-                'id' => $node->id,
-                'prompt_text' => $node->prompt_text,
-                'dtmf_option' => $node->dtmf_option,
-                'node_type' => $node->node_type,
-                'depth' => $node->depth,
-                'children' => $this->buildTree($nodes, $node->id),
-            ])
-            ->values()
-            ->all();
     }
 }

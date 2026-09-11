@@ -7,6 +7,7 @@ use App\Models\ConnectCheckResult;
 use App\Models\ConnectMonitor;
 use App\Services\MongoService;
 use App\Services\RealTimeTestService;
+use App\Services\ReachabilityService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -14,7 +15,8 @@ class ConnectController extends Controller
 {
     public function __construct(
         private readonly MongoService $mongo,
-        private readonly RealTimeTestService $realtime
+        private readonly RealTimeTestService $realtime,
+        private readonly ReachabilityService $reachability
     ) {}
 
     public function index(): JsonResponse
@@ -62,24 +64,14 @@ class ConnectController extends Controller
             ->limit(50)
             ->get();
 
-        // Duplicate reachability calculation block (also in RealTimeTestService / dev-api realtime.js)
-        $recentChecks = ConnectCheckResult::where('connect_monitor_id', $id)
-            ->orderByDesc('checked_at')
-            ->limit(20)
-            ->get();
-
-        $successRate = $recentChecks->count() > 0
-            ? ($recentChecks->where('reachable', true)->count() / $recentChecks->count()) * 100
-            : 100;
-
-        $computedStatus = $successRate < 90 ? 'alert' : 'active';
+        $storedRate = $monitor->reachability_pct !== null ? round((float) $monitor->reachability_pct, 2) : null;
 
         return response()->json([
             'monitor' => $monitor->only(['id', 'name', 'toll_free_number', 'country_code']),
             'data' => $checks,
             'computed' => [
-                'reachability_pct' => round($successRate, 2),
-                'status' => $computedStatus,
+                'reachability_pct' => $storedRate,
+                'status' => $this->reachability->statusFromRate($storedRate),
             ],
         ]);
     }

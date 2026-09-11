@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, getStreamUrl } from '../api/client';
+import { endpoints } from '../api/endpoints';
 import type { TestEvent } from '../types';
 
 interface StartResponse {
@@ -27,8 +28,8 @@ export function useRealtimeTest(module: 'discovery' | 'connect') {
     setProgress(0);
 
     const path = module === 'discovery'
-      ? `/discovery/jobs/${resourceId}/stream?session_id=${sessionId}`
-      : `/connect/monitors/${resourceId}/stream?session_id=${sessionId}`;
+      ? endpoints.discovery.stream(resourceId, sessionId)
+      : endpoints.connect.stream(resourceId, sessionId);
 
     const source = new EventSource(getStreamUrl(path));
     sourceRef.current = source;
@@ -54,13 +55,13 @@ export function useRealtimeTest(module: 'discovery' | 'connect') {
   }, [module, cleanup]);
 
   const startDiscovery = useCallback(async (jobId: number) => {
-    const res = await api.post<StartResponse>(`/discovery/jobs/${jobId}/start`, {});
+    const res = await api.post<StartResponse>(endpoints.discovery.start(jobId), {});
     connectStream(jobId, res.session_id);
     return res;
   }, [connectStream]);
 
   const startConnectCheck = useCallback(async (monitorId: number) => {
-    const res = await api.post<StartResponse>(`/connect/monitors/${monitorId}/run-check`, {});
+    const res = await api.post<StartResponse>(endpoints.connect.runCheck(monitorId), {});
     connectStream(monitorId, res.session_id);
     return res;
   }, [connectStream]);
