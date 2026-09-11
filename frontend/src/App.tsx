@@ -1,4 +1,5 @@
 import { NavLink, Route, Routes } from 'react-router-dom';
+import ErrorBoundary from './components/ErrorBoundary';
 import MongoStatus from './components/MongoStatus';
 import DashboardPage from './pages/DashboardPage';
 import DiscoveryPage from './pages/DiscoveryPage';
@@ -28,11 +29,13 @@ export default function App() {
         </div>
       </aside>
       <main className="main">
-        <Routes>
-          <Route path="/" element={<DashboardPage />} />
-          <Route path="/discovery" element={<DiscoveryPage />} />
-          <Route path="/connect" element={<ConnectPage />} />
-        </Routes>
+        <ErrorBoundary>
+          <Routes>
+            <Route path="/" element={<ErrorBoundary><DashboardPage /></ErrorBoundary>} />
+            <Route path="/discovery" element={<ErrorBoundary><DiscoveryPage /></ErrorBoundary>} />
+            <Route path="/connect" element={<ErrorBoundary><ConnectPage /></ErrorBoundary>} />
+          </Routes>
+        </ErrorBoundary>
       </main>
     </div>
   );
