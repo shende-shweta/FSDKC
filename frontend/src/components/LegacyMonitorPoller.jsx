@@ -11,9 +11,6 @@ interface State {
   error: string | null;
 }
 
-/**
- * Legacy class component — missing lifecycle cleanup (interval leak anti-pattern).
- */
 export default class LegacyMonitorPoller extends Component<Props, State> {
   intervalId: ReturnType<typeof setInterval> | null = null;
 
@@ -29,7 +26,13 @@ export default class LegacyMonitorPoller extends Component<Props, State> {
         })
         .catch((err: Error) => this.setState({ error: err.message }));
     }, 3000);
-    // Intentionally no componentWillUnmount — EventSource/interval leak for audit finding
+  }
+
+  componentWillUnmount() {
+    if (this.intervalId !== null) {
+      clearInterval(this.intervalId);
+      this.intervalId = null;
+    }
   }
 
   render() {
