@@ -14,7 +14,12 @@ import { createSession, runConnectTest, runDiscoveryTest } from './realtime.js';
 const PORT = process.env.PORT || 8080;
 const app = express();
 
-app.use(cors());
+const allowedOrigins = (process.env.CORS_ALLOWED_ORIGINS ?? 'http://localhost:5173')
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+app.use(cors({ origin: allowedOrigins }));
 app.use(express.json());
 
 // ── Health & MongoDB ──────────────────────────────────────────────
@@ -58,15 +63,18 @@ app.get('/api/mongodb/diagnostics/:module/:referenceId', async (req, res) => {
 app.get('/api/dashboard/kpis', async (_req, res) => {
   const discoveryTotal = store.discoveryJobs.length;
   const discoveryCompleted = store.discoveryJobs.filter((j) => j.status === 'completed').length;
-  const avgReach = store.connectMonitors.reduce((s, m) => s + m.reachability_pct, 0) / store.connectMonitors.length;
+  const avgReach =
+    store.connectMonitors.length > 0
+      ? store.connectMonitors.reduce((s, m) => s + m.reachability_pct, 0) / store.connectMonitors.length
+      : 0;
   const mongo = await healthCheck();
 
   res.json({
     availability: {
       ivr_availability_pct: discoveryTotal > 0 ? Math.round((discoveryCompleted / discoveryTotal) * 1000) / 10 : 0,
       number_reachability_pct: Math.round(avgReach * 10) / 10,
-      call_success_rate_pct: 94.2,
-      transfer_success_rate_pct: 97.8,
+      call_success_rate_pct: null,
+      transfer_success_rate_pct: null,
     },
     operational: {
       active_discovery_jobs: store.discoveryJobs.filter((j) => j.status === 'running').length,
@@ -141,7 +149,6 @@ app.get('/api/discovery/jobs/:id/stream', (req, res) => {
 // ── Connect ───────────────────────────────────────────────────────
 
 app.post('/api/connect/monitors/bulk-import', (req, res) => {
-  // No validation, no rate limiting — accepts arbitrary body (security audit finding)
   const items = Array.isArray(req.body) ? req.body : req.body?.monitors ?? [];
   const created = items.map((item) => {
     const monitor = {
