@@ -26,8 +26,8 @@ export interface ConnectMonitor {
   toll_free_number: string;
   country_code: string;
   carrier: string | null;
-  status: 'active' | 'paused' | 'alert';
-  reachability_pct: number;
+  status: 'active' | 'paused' | 'alert' | 'unknown';
+  reachability_pct: number | null;
   last_checked_at: string | null;
 }
 
@@ -84,8 +84,8 @@ export interface DashboardKpis {
   availability: {
     ivr_availability_pct: number;
     number_reachability_pct: number;
-    call_success_rate_pct: number;
-    transfer_success_rate_pct: number;
+    call_success_rate_pct: number | null;
+    transfer_success_rate_pct: number | null;
   };
   operational: {
     active_discovery_jobs: number;

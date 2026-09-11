@@ -1,15 +1,18 @@
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../api/client';
+import { endpoints } from '../api/endpoints';
 import type { DashboardKpis } from '../types';
 
 export default function DashboardPage() {
   const { data, isLoading, error } = useQuery({
     queryKey: ['dashboard', 'kpis'],
-    queryFn: () => api.get<DashboardKpis>('/dashboard/kpis'),
+    queryFn: () => api.get<DashboardKpis>(endpoints.dashboard.kpis),
   });
 
-  if (isLoading) return <div className="empty">Loading KPIs…</div>;
+  if (isLoading) return <div className="empty">Loading KPIs\u2026</div>;
   if (error) return <div className="error">Failed to load dashboard. Is the API running?</div>;
+
+  const fmt = (v: number | null) => (v != null ? `${v}%` : '\u2014');
 
   return (
     <>
@@ -23,10 +26,10 @@ export default function DashboardPage() {
           Availability KPIs
         </h2>
         <div className="kpi-grid">
-          <KpiCard label="IVR Availability" value={`${data!.availability.ivr_availability_pct}%`} />
-          <KpiCard label="Number Reachability" value={`${data!.availability.number_reachability_pct}%`} />
-          <KpiCard label="Call Success Rate" value={`${data!.availability.call_success_rate_pct}%`} />
-          <KpiCard label="Transfer Success" value={`${data!.availability.transfer_success_rate_pct}%`} />
+          <KpiCard label="IVR Availability" value={fmt(data!.availability.ivr_availability_pct)} />
+          <KpiCard label="Number Reachability" value={fmt(data!.availability.number_reachability_pct)} />
+          <KpiCard label="Call Success Rate" value={fmt(data!.availability.call_success_rate_pct)} />
+          <KpiCard label="Transfer Success" value={fmt(data!.availability.transfer_success_rate_pct)} />
         </div>
       </section>
 
@@ -47,7 +50,7 @@ export default function DashboardPage() {
           <strong>Active Modules</strong>
           {data!.mongodb?.connected && (
             <span className="badge badge-active">
-              MongoDB · {data!.mongodb.collections?.transcripts ?? 0} transcripts
+              MongoDB \u00b7 {data!.mongodb.collections?.transcripts ?? 0} transcripts
             </span>
           )}
         </div>

@@ -7,11 +7,14 @@ use App\Legacy\LegacyDataMapper;
 use App\Models\ConnectMonitor;
 use App\Models\DiscoveryJob;
 use App\Models\DiscoveryNode;
+use App\Services\TreeBuilderService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class LegacyReportController extends Controller
 {
+    public function __construct(private readonly TreeBuilderService $tree) {}
+
     public function carrierSummary(Request $request): JsonResponse
     {
         $countryCode = $request->query('country_code');
@@ -42,35 +45,18 @@ class LegacyReportController extends Controller
         $job = DiscoveryJob::findOrFail($jobId);
         $nodes = DiscoveryNode::where('discovery_job_id', $jobId)->get();
 
-        $tree = $this->buildTree($nodes);
         $maxDepth = $nodes->max('depth') ?? 0;
         $transferCount = $nodes->where('node_type', 'transfer')->count();
 
         return response()->json([
             'job_id' => $job->id,
             'job_name' => $job->name,
-            'tree' => $tree,
+            'tree' => $this->tree->build($nodes),
             'stats' => [
                 'max_depth' => $maxDepth,
                 'transfer_nodes' => $transferCount,
                 'total_nodes' => $nodes->count(),
             ],
         ]);
-    }
-
-    private function buildTree($nodes, ?int $parentId = null): array
-    {
-        return $nodes
-            ->where('parent_id', $parentId)
-            ->map(fn (DiscoveryNode $node) => [
-                'id' => $node->id,
-                'prompt_text' => $node->prompt_text,
-                'dtmf_option' => $node->dtmf_option,
-                'node_type' => $node->node_type,
-                'depth' => $node->depth,
-                'children' => $this->buildTree($nodes, $node->id),
-            ])
-            ->values()
-            ->all();
     }
 }

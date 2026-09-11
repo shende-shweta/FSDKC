@@ -17,9 +17,11 @@ class DashboardController extends Controller
         $avgReachability = ConnectMonitor::avg('reachability_pct') ?? 0;
         $alerts = ConnectMonitor::where('status', 'alert')->count();
 
-        $recentChecks = ConnectCheckResult::orderByDesc('checked_at')->limit(100)->get();
-        $callSuccessRate = $recentChecks->isNotEmpty()
-            ? round(($recentChecks->where('reachable', true)->count() / $recentChecks->count()) * 100, 1)
+        // pluck fetches one column, avoiding 100 model hydrations.
+        // orderByDesc('checked_at') will filesort until index T-13\u2013T-15 lands.
+        $reachableFlags = ConnectCheckResult::orderByDesc('checked_at')->limit(100)->pluck('reachable');
+        $callSuccessRate = $reachableFlags->isNotEmpty()
+            ? round($reachableFlags->filter()->count() / $reachableFlags->count() * 100, 1)
             : null;
 
         return response()->json([

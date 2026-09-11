@@ -10,7 +10,7 @@ class ReachabilityService
     private const ALERT_THRESHOLD = 90.0;
     private const SAMPLE_SIZE = 20;
 
-    public function calculate(int $monitorId): float
+    public function calculate(int $monitorId): ?float
     {
         $recent = ConnectCheckResult::where('connect_monitor_id', $monitorId)
             ->orderByDesc('checked_at')
@@ -20,17 +20,21 @@ class ReachabilityService
         return $this->calculateFromResults($recent);
     }
 
-    public function calculateFromResults(Collection $results): float
+    public function calculateFromResults(Collection $results): ?float
     {
         if ($results->isEmpty()) {
-            return 100.0;
+            return null;
         }
 
         return ($results->where('reachable', true)->count() / $results->count()) * 100;
     }
 
-    public function statusFromRate(float $rate): string
+    public function statusFromRate(?float $rate): string
     {
+        if ($rate === null) {
+            return 'unknown';
+        }
+
         return $rate < self::ALERT_THRESHOLD ? 'alert' : 'active';
     }
 }
