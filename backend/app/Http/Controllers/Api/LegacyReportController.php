@@ -4,51 +4,35 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Legacy\LegacyDataMapper;
-use App\Models\ConnectCheckResult;
 use App\Models\ConnectMonitor;
 use App\Models\DiscoveryJob;
 use App\Models\DiscoveryNode;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
-/**
- * Fat controller — business logic, DB queries, and KPI math live here (anti-pattern).
- */
 class LegacyReportController extends Controller
 {
     public function carrierSummary(Request $request): JsonResponse
     {
-        $filters = $request->all();
-        extract($filters);
+        $countryCode = $request->query('country_code');
+        $carrier = $request->query('carrier');
 
         $monitors = ConnectMonitor::query()
-            ->when(isset($country_code), fn ($q) => $q->where('country_code', $country_code))
-            ->when(isset($carrier), fn ($q) => $q->where('carrier', $carrier))
+            ->when($countryCode, fn ($q) => $q->where('country_code', $countryCode))
+            ->when($carrier, fn ($q) => $q->where('carrier', $carrier))
             ->orderByDesc('reachability_pct')
             ->get();
 
-        $rows = [];
         $mapper = new LegacyDataMapper();
 
-        foreach ($monitors as $monitor) {
-            $recent = ConnectCheckResult::where('connect_monitor_id', $monitor->id)
-                ->orderByDesc('checked_at')
-                ->limit(20)
-                ->get();
-
-            $successRate = $recent->count() > 0
-                ? ($recent->where('reachable', true)->count() / $recent->count()) * 100
-                : 100;
-
-            $rows[] = array_merge(
-                $mapper->mapReportRow([
-                    'name' => $monitor->name,
-                    'reachability_pct' => round($successRate, 2),
-                    'country_code' => $monitor->country_code,
-                ]),
-                ['monitor_id' => $monitor->id, 'carrier' => $monitor->carrier]
-            );
-        }
+        $rows = $monitors->map(fn (ConnectMonitor $monitor) => array_merge(
+            $mapper->mapReportRow([
+                'name' => $monitor->name,
+                'reachability_pct' => $monitor->reachability_pct,
+                'country_code' => $monitor->country_code,
+            ]),
+            ['monitor_id' => $monitor->id, 'carrier' => $monitor->carrier]
+        ))->all();
 
         return response()->json(['data' => $rows, 'total' => count($rows)]);
     }
@@ -74,7 +58,6 @@ class LegacyReportController extends Controller
         ]);
     }
 
-    /** Duplicate of DiscoveryController::buildTree — copy-paste debt */
     private function buildTree($nodes, ?int $parentId = null): array
     {
         return $nodes
