@@ -11,30 +11,31 @@ use App\Models\DiscoveryNode;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
-/**
- * Fat controller — business logic, DB queries, and KPI math live here (anti-pattern).
- */
 class LegacyReportController extends Controller
 {
     public function carrierSummary(Request $request): JsonResponse
     {
-        $filters = $request->all();
-        extract($filters);
+        $countryCode = $request->query('country_code');
+        $carrier = $request->query('carrier');
 
         $monitors = ConnectMonitor::query()
-            ->when(isset($country_code), fn ($q) => $q->where('country_code', $country_code))
-            ->when(isset($carrier), fn ($q) => $q->where('carrier', $carrier))
+            ->when($countryCode !== null, fn ($q) => $q->where('country_code', $countryCode))
+            ->when($carrier !== null, fn ($q) => $q->where('carrier', $carrier))
             ->orderByDesc('reachability_pct')
             ->get();
 
-        $rows = [];
+        $monitorIds = $monitors->pluck('id')->all();
+
+        $allChecks = ConnectCheckResult::whereIn('connect_monitor_id', $monitorIds)
+            ->orderByDesc('checked_at')
+            ->get()
+            ->groupBy('connect_monitor_id');
+
         $mapper = new LegacyDataMapper();
+        $rows = [];
 
         foreach ($monitors as $monitor) {
-            $recent = ConnectCheckResult::where('connect_monitor_id', $monitor->id)
-                ->orderByDesc('checked_at')
-                ->limit(20)
-                ->get();
+            $recent = $allChecks->get($monitor->id, collect())->take(20);
 
             $successRate = $recent->count() > 0
                 ? ($recent->where('reachable', true)->count() / $recent->count()) * 100
@@ -74,7 +75,6 @@ class LegacyReportController extends Controller
         ]);
     }
 
-    /** Duplicate of DiscoveryController::buildTree — copy-paste debt */
     private function buildTree($nodes, ?int $parentId = null): array
     {
         return $nodes
