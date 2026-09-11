@@ -31,7 +31,7 @@ class LegacyReportController extends Controller
         $rows = $monitors->map(fn (ConnectMonitor $monitor) => array_merge(
             $mapper->mapReportRow([
                 'name' => $monitor->name,
-                'reachability_pct' => $monitor->reachability_pct,
+                'reachability_pct' => round((float) ($monitor->reachability_pct ?? 0.0), 2),
                 'country_code' => $monitor->country_code,
             ]),
             ['monitor_id' => $monitor->id, 'carrier' => $monitor->carrier]

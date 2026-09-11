@@ -64,15 +64,14 @@ class ConnectController extends Controller
             ->limit(50)
             ->get();
 
-        $recentChecks = $checks->take(20);
-        $successRate = $this->reachability->calculateFromResults($recentChecks);
+        $storedRate = $monitor->reachability_pct !== null ? round((float) $monitor->reachability_pct, 2) : null;
 
         return response()->json([
             'monitor' => $monitor->only(['id', 'name', 'toll_free_number', 'country_code']),
             'data' => $checks,
             'computed' => [
-                'reachability_pct' => round($successRate, 2),
-                'status' => $this->reachability->statusFromRate($successRate),
+                'reachability_pct' => $storedRate,
+                'status' => $this->reachability->statusFromRate($storedRate),
             ],
         ]);
     }
