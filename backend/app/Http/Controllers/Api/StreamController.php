@@ -33,31 +33,28 @@ class StreamController extends Controller
     {
         return response()->stream(function () use ($sessionId): void {
             $sent = 0;
+            $emptyPolls = 0;
 
-            foreach ($this->mongo->getTestEvents($sessionId) as $event) {
-                echo 'data: '.json_encode($event)."\n\n";
-                ob_flush();
-                flush();
-                $sent++;
-                if (($event['event']['type'] ?? '') === 'complete') {
-                    return;
-                }
-            }
+            while ($emptyPolls < 60) {
+                $events = $this->mongo->getTestEvents($sessionId, $sent);
 
-            $attempts = 0;
-            while ($attempts < 60) {
-                $events = $this->mongo->getTestEvents($sessionId);
-                foreach (array_slice($events, $sent) as $event) {
+                foreach ($events as $event) {
                     echo 'data: '.json_encode($event)."\n\n";
                     ob_flush();
                     flush();
                     $sent++;
+
                     if (($event['event']['type'] ?? '') === 'complete') {
                         return;
                     }
                 }
-                usleep(500_000);
-                $attempts++;
+
+                if (empty($events)) {
+                    usleep(500_000);
+                    $emptyPolls++;
+                } else {
+                    $emptyPolls = 0;
+                }
             }
         }, 200, [
             'Content-Type' => 'text/event-stream',
