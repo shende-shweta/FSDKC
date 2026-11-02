@@ -1,10 +1,20 @@
-import { NavLink, Route, Routes } from 'react-router-dom';
+import { Navigate, NavLink, Route, Routes } from 'react-router-dom';
+import ErrorBoundary from './components/ErrorBoundary';
 import MongoStatus from './components/MongoStatus';
 import DashboardPage from './pages/DashboardPage';
 import DiscoveryPage from './pages/DiscoveryPage';
 import ConnectPage from './pages/ConnectPage';
+import LoginPage from './pages/LoginPage';
 
-export default function App() {
+function isAuthenticated(): boolean {
+  return localStorage.getItem('klearcom_token') !== null;
+}
+
+function ProtectedLayout() {
+  if (!isAuthenticated()) {
+    return <Navigate to="/login" replace />;
+  }
+
   return (
     <div className="app-layout">
       <aside className="sidebar">
@@ -28,12 +38,23 @@ export default function App() {
         </div>
       </aside>
       <main className="main">
-        <Routes>
-          <Route path="/" element={<DashboardPage />} />
-          <Route path="/discovery" element={<DiscoveryPage />} />
-          <Route path="/connect" element={<ConnectPage />} />
-        </Routes>
+        <ErrorBoundary>
+          <Routes>
+            <Route path="/" element={<DashboardPage />} />
+            <Route path="/discovery" element={<DiscoveryPage />} />
+            <Route path="/connect" element={<ConnectPage />} />
+          </Routes>
+        </ErrorBoundary>
       </main>
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/*" element={<ProtectedLayout />} />
+    </Routes>
   );
 }

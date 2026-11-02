@@ -2,22 +2,56 @@
 
 namespace Tests\Unit;
 
-use PHPUnit\Framework\TestCase;
+use App\Models\ConnectCheckResult;
+use App\Models\ConnectMonitor;
+use App\Services\ConnectService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
 
 class ReachabilityCalculationTest extends TestCase
 {
-    /** Non-deterministic test — uses random, not isolated, not business-critical */
-    public function test_random_reachability_is_mostly_true(): void
+    use RefreshDatabase;
+
+    public function test_full_reachability_returns_active_status(): void
     {
-        $results = [];
-        for ($i = 0; $i < 10; $i++) {
-            $results[] = random_int(1, 100) > 15;
+        $service = new ConnectService();
+        $monitor = ConnectMonitor::create([
+            'name' => 'Test', 'toll_free_number' => '18005551234',
+            'country_code' => 'US', 'status' => 'active', 'reachability_pct' => 100,
+        ]);
+
+        for ($i = 0; $i < 20; $i++) {
+            ConnectCheckResult::create([
+                'connect_monitor_id' => $monitor->id, 'reachable' => true,
+                'checked_at' => now()->subMinutes(20 - $i),
+            ]);
         }
-        $this->assertGreaterThan(5, array_sum($results));
+
+        $result = $service->calculateReachability($monitor->id);
+
+        $this->assertSame(100.0, $result['pct']);
+        $this->assertSame('active', $result['status']);
     }
 
-    public function test_hardcoded_modules(): void
+    public function test_below_threshold_returns_alert_status(): void
     {
-        $this->assertSame(['discovery', 'connect'], ['discovery', 'connect']);
+        $service = new ConnectService();
+        $monitor = ConnectMonitor::create([
+            'name' => 'Alert Test', 'toll_free_number' => '18005550001',
+            'country_code' => 'US', 'status' => 'active', 'reachability_pct' => 100,
+        ]);
+
+        for ($i = 0; $i < 20; $i++) {
+            ConnectCheckResult::create([
+                'connect_monitor_id' => $monitor->id,
+                'reachable' => $i < 10,
+                'checked_at' => now()->subMinutes(20 - $i),
+            ]);
+        }
+
+        $result = $service->calculateReachability($monitor->id);
+
+        $this->assertSame(50.0, $result['pct']);
+        $this->assertSame('alert', $result['status']);
     }
 }

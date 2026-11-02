@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, master]
+    branches: [main, master, refactor/fsdkc-modernization]
   pull_request:
 
 jobs:
@@ -18,12 +18,13 @@ jobs:
           MYSQL_PASSWORD: secret
         ports:
           - 3306:3306
+        options: --health-cmd="healthcheck.sh --connect --innodb_initialized" --health-interval=10s --health-timeout=5s --health-retries=3
     steps:
       - uses: actions/checkout@v4
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.3'
-          extensions: pdo_mysql, zip
+          extensions: pdo_mysql, pdo_sqlite, zip
           coverage: none
       - name: Install MongoDB extension
         run: |
@@ -33,6 +34,13 @@ jobs:
         working-directory: backend
       - run: cp .env.example .env && php artisan key:generate
         working-directory: backend
+      - run: php artisan migrate --force
+        working-directory: backend
+        env:
+          DB_HOST: 127.0.0.1
+          DB_DATABASE: klearcom
+          DB_USERNAME: klearcom
+          DB_PASSWORD: secret
       - run: vendor/bin/phpunit
         working-directory: backend
         env:
@@ -48,7 +56,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: npm ci || npm install
+      - run: npm ci --no-audit --no-fund
         working-directory: frontend
       - run: npm run build
+        working-directory: frontend
+      - run: npm run test -- --run
         working-directory: frontend

@@ -136,6 +136,20 @@ class MongoService
         return array_map([$this, 'serializeDocument'], iterator_to_array($cursor));
     }
 
+    public function getTestEventsSince(string $sessionId, int $skip): array
+    {
+        if ($this->testEvents === null) {
+            return [];
+        }
+
+        $cursor = $this->testEvents->find(
+            ['session_id' => $sessionId],
+            ['sort' => ['created_at' => 1], 'skip' => $skip]
+        );
+
+        return array_map([$this, 'serializeDocument'], iterator_to_array($cursor));
+    }
+
     public function getDiagnostics(string $module, int $referenceId): array
     {
         if ($this->diagnostics === null) {

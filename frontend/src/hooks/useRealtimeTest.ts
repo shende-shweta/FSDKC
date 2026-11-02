@@ -26,9 +26,10 @@ export function useRealtimeTest(module: 'discovery' | 'connect') {
     setIsRunning(true);
     setProgress(0);
 
+    // Paths include /api prefix so getStreamUrl can build a complete URL
     const path = module === 'discovery'
-      ? `/discovery/jobs/${resourceId}/stream?session_id=${sessionId}`
-      : `/connect/monitors/${resourceId}/stream?session_id=${sessionId}`;
+      ? `/api/discovery/jobs/${resourceId}/stream?session_id=${sessionId}`
+      : `/api/connect/monitors/${resourceId}/stream?session_id=${sessionId}`;
 
     const source = new EventSource(getStreamUrl(path));
     sourceRef.current = source;

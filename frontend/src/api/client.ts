@@ -1,15 +1,32 @@
 const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8080/api';
 
 export function getStreamUrl(path: string): string {
-  const base = API_BASE.replace(/\/api\/?$/, '');
-  return `${base}/api${path.startsWith('/') ? path : `/${path}`}`;
+  const base = (import.meta.env.VITE_API_URL ?? 'http://localhost:8080/api').replace(/\/$/, '');
+  const token = localStorage.getItem('klearcom_token');
+  const separator = path.includes('?') ? '&' : '?';
+  return `${base}${path}${token ? `${separator}token=${encodeURIComponent(token)}` : ''}`;
 }
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const token = localStorage.getItem('klearcom_token');
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    Accept: 'application/json',
+  };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
   const res = await fetch(`${API_BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    headers,
     ...options,
   });
+
+  if (res.status === 401) {
+    localStorage.removeItem('klearcom_token');
+    window.location.href = '/login';
+    throw new Error('Unauthorized');
+  }
 
   if (!res.ok) {
     const body = await res.text();

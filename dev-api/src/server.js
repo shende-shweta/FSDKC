@@ -1,5 +1,7 @@
 import cors from 'cors';
 import express from 'express';
+import rateLimit from 'express-rate-limit';
+import Joi from 'joi';
 import {
   connectMongo,
   getDbInfo,
@@ -14,8 +16,25 @@ import { createSession, runConnectTest, runDiscoveryTest } from './realtime.js';
 const PORT = process.env.PORT || 8080;
 const app = express();
 
-app.use(cors());
+const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') ?? ['http://localhost:5173'];
+app.use(cors({ origin: allowedOrigins }));
 app.use(express.json());
+
+// Global rate limiter: 100 requests per minute per IP
+const globalLimiter = rateLimit({ windowMs: 60_000, max: 100 });
+app.use(globalLimiter);
+
+// Stricter limiter for test-trigger endpoints
+const testTriggerLimiter = rateLimit({ windowMs: 60_000, max: 10 });
+
+// Bulk-import item schema
+const bulkImportItemSchema = Joi.object({
+  name: Joi.string().required(),
+  toll_free_number: Joi.string().required(),
+  country_code: Joi.string().max(5).optional(),
+  carrier: Joi.string().optional().allow(null, ''),
+  reachability_pct: Joi.number().min(0).max(100).default(100),
+});
 
 // ── Health & MongoDB ──────────────────────────────────────────────
 
@@ -43,6 +62,10 @@ app.get('/api/mongodb/transcripts', async (req, res) => {
 });
 
 app.get('/api/mongodb/diagnostics/:module/:referenceId', async (req, res) => {
+  const allowedModules = ['discovery', 'connect'];
+  if (!allowedModules.includes(req.params.module)) {
+    return res.status(400).json({ error: 'module must be discovery or connect' });
+  }
   const { getDb } = await import('./mongo.js');
   const data = await getDb()
     .collection('call_diagnostics')
@@ -58,15 +81,27 @@ app.get('/api/mongodb/diagnostics/:module/:referenceId', async (req, res) => {
 app.get('/api/dashboard/kpis', async (_req, res) => {
   const discoveryTotal = store.discoveryJobs.length;
   const discoveryCompleted = store.discoveryJobs.filter((j) => j.status === 'completed').length;
-  const avgReach = store.connectMonitors.reduce((s, m) => s + m.reachability_pct, 0) / store.connectMonitors.length;
+  const avgReach = store.connectMonitors.length > 0
+    ? store.connectMonitors.reduce((s, m) => s + m.reachability_pct, 0) / store.connectMonitors.length
+    : 0;
   const mongo = await healthCheck();
+
+  const last100Checks = store.connectChecks.slice(-100);
+  const callSuccessRate = last100Checks.length > 0
+    ? Math.round((last100Checks.filter((c) => c.reachable).length / last100Checks.length) * 1000) / 10
+    : null;
+
+  const withCarrier = last100Checks.filter((c) => c.carrier_route);
+  const transferSuccessRate = withCarrier.length > 0
+    ? Math.round((withCarrier.filter((c) => c.reachable).length / withCarrier.length) * 1000) / 10
+    : null;
 
   res.json({
     availability: {
       ivr_availability_pct: discoveryTotal > 0 ? Math.round((discoveryCompleted / discoveryTotal) * 1000) / 10 : 0,
       number_reachability_pct: Math.round(avgReach * 10) / 10,
-      call_success_rate_pct: 94.2,
-      transfer_success_rate_pct: 97.8,
+      call_success_rate_pct: callSuccessRate,
+      transfer_success_rate_pct: transferSuccessRate,
     },
     operational: {
       active_discovery_jobs: store.discoveryJobs.filter((j) => j.status === 'running').length,
@@ -120,7 +155,7 @@ app.get('/api/discovery/jobs/:id/tree', (req, res) => {
   res.json({ job_id: job.id, job_name: job.name, tree: buildTree(nodes) });
 });
 
-app.post('/api/discovery/jobs/:id/start', async (req, res) => {
+app.post('/api/discovery/jobs/:id/start', testTriggerLimiter, async (req, res) => {
   const jobId = Number(req.params.id);
   const job = store.discoveryJobs.find((j) => j.id === jobId);
   if (!job) return res.status(404).json({ error: 'Not found' });
@@ -141,22 +176,43 @@ app.get('/api/discovery/jobs/:id/stream', (req, res) => {
 // ── Connect ───────────────────────────────────────────────────────
 
 app.post('/api/connect/monitors/bulk-import', (req, res) => {
-  // No validation, no rate limiting — accepts arbitrary body (security audit finding)
   const items = Array.isArray(req.body) ? req.body : req.body?.monitors ?? [];
-  const created = items.map((item) => {
+
+  if (items.length > 100) {
+    return res.status(400).json({ error: 'Bulk import limit is 100 items per request' });
+  }
+
+  const errors = [];
+  const validated = [];
+
+  for (let i = 0; i < items.length; i++) {
+    const { error, value } = bulkImportItemSchema.validate(items[i]);
+    if (error) {
+      errors.push({ index: i, message: error.message });
+    } else {
+      validated.push(value);
+    }
+  }
+
+  if (errors.length > 0) {
+    return res.status(400).json({ error: 'Validation failed', details: errors });
+  }
+
+  const created = validated.map((item) => {
     const monitor = {
       id: store.nextMonitorId++,
-      name: item.name ?? 'Imported',
-      toll_free_number: item.toll_free_number ?? '',
+      name: item.name,
+      toll_free_number: item.toll_free_number,
       country_code: item.country_code ?? 'US',
       carrier: item.carrier ?? null,
       status: 'active',
-      reachability_pct: item.reachability_pct ?? 100,
+      reachability_pct: item.reachability_pct,
       last_checked_at: null,
     };
     store.connectMonitors.unshift(monitor);
     return monitor;
   });
+
   res.status(201).json({ data: created, imported: created.length });
 });
 
@@ -201,7 +257,7 @@ app.get('/api/connect/monitors/:id/checks', (req, res) => {
   });
 });
 
-app.post('/api/connect/monitors/:id/run-check', async (req, res) => {
+app.post('/api/connect/monitors/:id/run-check', testTriggerLimiter, async (req, res) => {
   const monitorId = Number(req.params.id);
   const monitor = store.connectMonitors.find((m) => m.id === monitorId);
   if (!monitor) return res.status(404).json({ error: 'Not found' });
