@@ -2,15 +2,25 @@
 
 namespace Tests\Unit;
 
-use PHPUnit\Framework\TestCase;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
 
 class HealthTest extends TestCase
 {
-    public function test_platform_modules_defined(): void
+    use RefreshDatabase;
+
+    public function test_health_endpoint_returns_200_with_ok_status(): void
     {
-        $modules = ['discovery', 'connect'];
-        $this->assertCount(2, $modules);
-        $this->assertContains('discovery', $modules);
-        $this->assertContains('connect', $modules);
+        $response = $this->getJson('/api/health');
+
+        $response->assertStatus(200);
+        $response->assertJsonPath('status', 'ok');
+    }
+
+    public function test_health_endpoint_is_publicly_accessible_without_auth(): void
+    {
+        $response = $this->getJson('/api/health');
+
+        $response->assertStatus(200);
     }
 }

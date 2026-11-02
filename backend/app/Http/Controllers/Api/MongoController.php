@@ -35,6 +35,8 @@ class MongoController extends Controller
 
     public function diagnostics(string $module, int $referenceId): JsonResponse
     {
+        abort_if(! in_array($module, ['discovery', 'connect'], true), 400, 'module must be discovery or connect');
+
         return response()->json([
             'data' => $this->mongo->getDiagnostics($module, $referenceId),
         ]);

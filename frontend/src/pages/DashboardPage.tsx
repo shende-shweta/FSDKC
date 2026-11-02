@@ -11,6 +11,9 @@ export default function DashboardPage() {
   if (isLoading) return <div className="empty">Loading KPIs…</div>;
   if (error) return <div className="error">Failed to load dashboard. Is the API running?</div>;
 
+  const fmt = (v: number | null | undefined): string =>
+    v != null ? `${v.toFixed(1)}%` : '—';
+
   return (
     <>
       <header className="page-header">
@@ -23,10 +26,10 @@ export default function DashboardPage() {
           Availability KPIs
         </h2>
         <div className="kpi-grid">
-          <KpiCard label="IVR Availability" value={`${data!.availability.ivr_availability_pct}%`} />
-          <KpiCard label="Number Reachability" value={`${data!.availability.number_reachability_pct}%`} />
-          <KpiCard label="Call Success Rate" value={`${data!.availability.call_success_rate_pct}%`} />
-          <KpiCard label="Transfer Success" value={`${data!.availability.transfer_success_rate_pct}%`} />
+          <KpiCard label="IVR Availability" value={fmt(data!.availability.ivr_availability_pct)} />
+          <KpiCard label="Number Reachability" value={fmt(data!.availability.number_reachability_pct)} />
+          <KpiCard label="Call Success Rate" value={fmt(data!.availability.call_success_rate_pct)} />
+          <KpiCard label="Transfer Success" value={fmt(data!.availability.transfer_success_rate_pct)} />
         </div>
       </section>
 

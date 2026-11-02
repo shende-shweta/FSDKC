@@ -61,15 +61,26 @@ export const store = {
   nextCheckId: 4,
 };
 
+/** O(n) map-based tree builder — pre-groups by parent_id to avoid O(n²) recursion */
 export function buildTree(nodes, parentId = null) {
-  return nodes
-    .filter((n) => n.parent_id === parentId)
-    .map((n) => ({
+  const grouped = new Map();
+  for (const node of nodes) {
+    const key = node.parent_id ?? null;
+    if (!grouped.has(key)) grouped.set(key, []);
+    grouped.get(key).push(node);
+  }
+
+  function buildFromMap(pid) {
+    const children = grouped.get(pid) ?? [];
+    return children.map((n) => ({
       id: n.id,
       prompt_text: n.prompt_text,
       dtmf_option: n.dtmf_option,
       node_type: n.node_type,
       depth: n.depth,
-      children: buildTree(nodes, n.id),
+      children: buildFromMap(n.id),
     }));
+  }
+
+  return buildFromMap(parentId);
 }

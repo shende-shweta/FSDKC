@@ -1,14 +1,17 @@
 <?php
 
+use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ConnectController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\DiscoveryController;
 use App\Http\Controllers\Api\LegacyReportController;
 use App\Http\Controllers\Api\MongoController;
 use App\Http\Controllers\Api\StreamController;
+use App\Http\Middleware\TokenFromQuery;
 use App\Services\MongoService;
 use Illuminate\Support\Facades\Route;
 
+// Public endpoints
 Route::get('/health', function (MongoService $mongo) {
     return response()->json([
         'status' => 'ok',
@@ -18,31 +21,42 @@ Route::get('/health', function (MongoService $mongo) {
     ]);
 });
 
-Route::get('/mongodb/status', [MongoController::class, 'status']);
-Route::get('/mongodb/transcripts', [MongoController::class, 'transcripts']);
-Route::get('/mongodb/diagnostics/{module}/{referenceId}', [MongoController::class, 'diagnostics']);
+Route::post('/auth/register', [AuthController::class, 'register']);
+Route::post('/auth/login', [AuthController::class, 'login']);
 
-Route::get('/dashboard/kpis', [DashboardController::class, 'kpis']);
+// Protected endpoints
+Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function (): void {
 
-Route::prefix('legacy')->group(function (): void {
-    Route::get('/reports/carriers', [LegacyReportController::class, 'carrierSummary']);
-    Route::get('/reports/ivr/{jobId}', [LegacyReportController::class, 'ivrDepthReport']);
-});
+    Route::post('/auth/logout', [AuthController::class, 'logout']);
 
-Route::prefix('discovery')->group(function (): void {
-    Route::get('/jobs', [DiscoveryController::class, 'index']);
-    Route::post('/jobs', [DiscoveryController::class, 'store']);
-    Route::get('/jobs/{id}', [DiscoveryController::class, 'show']);
-    Route::get('/jobs/{id}/tree', [DiscoveryController::class, 'tree']);
-    Route::post('/jobs/{id}/start', [DiscoveryController::class, 'start']);
-    Route::get('/jobs/{id}/stream', [StreamController::class, 'discoveryEvents']);
-});
+    Route::get('/mongodb/status', [MongoController::class, 'status']);
+    Route::get('/mongodb/transcripts', [MongoController::class, 'transcripts']);
+    Route::get('/mongodb/diagnostics/{module}/{referenceId}', [MongoController::class, 'diagnostics']);
 
-Route::prefix('connect')->group(function (): void {
-    Route::get('/monitors', [ConnectController::class, 'index']);
-    Route::post('/monitors', [ConnectController::class, 'store']);
-    Route::get('/monitors/{id}', [ConnectController::class, 'show']);
-    Route::get('/monitors/{id}/checks', [ConnectController::class, 'checks']);
-    Route::post('/monitors/{id}/run-check', [ConnectController::class, 'runCheck']);
-    Route::get('/monitors/{id}/stream', [StreamController::class, 'connectEvents']);
+    Route::get('/dashboard/kpis', [DashboardController::class, 'kpis']);
+
+    Route::prefix('legacy')->group(function (): void {
+        Route::get('/reports/carriers', [LegacyReportController::class, 'carrierSummary']);
+        Route::get('/reports/ivr/{jobId}', [LegacyReportController::class, 'ivrDepthReport']);
+    });
+
+    Route::prefix('discovery')->group(function (): void {
+        Route::get('/jobs', [DiscoveryController::class, 'index']);
+        Route::post('/jobs', [DiscoveryController::class, 'store']);
+        Route::get('/jobs/{id}', [DiscoveryController::class, 'show']);
+        Route::get('/jobs/{id}/tree', [DiscoveryController::class, 'tree']);
+        Route::post('/jobs/{id}/start', [DiscoveryController::class, 'start'])->middleware('throttle:10,1');
+        // SSE endpoint: also accepts token via ?token= query param for EventSource compatibility
+        Route::get('/jobs/{id}/stream', [StreamController::class, 'discoveryEvents'])->middleware(TokenFromQuery::class);
+    });
+
+    Route::prefix('connect')->group(function (): void {
+        Route::get('/monitors', [ConnectController::class, 'index']);
+        Route::post('/monitors', [ConnectController::class, 'store']);
+        Route::get('/monitors/{id}', [ConnectController::class, 'show']);
+        Route::get('/monitors/{id}/checks', [ConnectController::class, 'checks']);
+        Route::post('/monitors/{id}/run-check', [ConnectController::class, 'runCheck'])->middleware('throttle:10,1');
+        // SSE endpoint: also accepts token via ?token= query param for EventSource compatibility
+        Route::get('/monitors/{id}/stream', [StreamController::class, 'connectEvents'])->middleware(TokenFromQuery::class);
+    });
 });

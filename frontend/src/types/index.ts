@@ -1,3 +1,9 @@
+export interface User {
+  id: number;
+  name: string;
+  email: string;
+}
+
 export interface DiscoveryJob {
   id: number;
   name: string;
@@ -84,8 +90,8 @@ export interface DashboardKpis {
   availability: {
     ivr_availability_pct: number;
     number_reachability_pct: number;
-    call_success_rate_pct: number;
-    transfer_success_rate_pct: number;
+    call_success_rate_pct: number | null;
+    transfer_success_rate_pct: number | null;
   };
   operational: {
     active_discovery_jobs: number;

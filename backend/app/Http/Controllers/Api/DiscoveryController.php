@@ -3,12 +3,15 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\DiscoveryRequest;
 use App\Models\DiscoveryJob;
 use App\Models\DiscoveryNode;
+use App\Services\DiscoveryTreeBuilder;
 use App\Services\MongoService;
 use App\Services\RealTimeTestService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+
 class DiscoveryController extends Controller
 {
     public function __construct(
@@ -16,21 +19,17 @@ class DiscoveryController extends Controller
         private readonly RealTimeTestService $realtime
     ) {}
 
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
-        $jobs = DiscoveryJob::orderByDesc('created_at')->get();
+        // TODO: lower per_page to 25 once SPA implements pagination UI
+        $jobs = DiscoveryJob::orderByDesc('created_at')->paginate($request->integer('per_page', 1000));
 
-        return response()->json(['data' => $jobs]);
+        return response()->json($jobs);
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(DiscoveryRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'phone_number' => 'required|string|max:50',
-            'country_code' => 'required|string|max:5',
-            'languages' => 'array',
-        ]);
+        $validated = $request->validated();
 
         $job = DiscoveryJob::create([
             ...$validated,
@@ -60,7 +59,7 @@ class DiscoveryController extends Controller
         return response()->json([
             'job_id' => $job->id,
             'job_name' => $job->name,
-            'tree' => $this->buildTree($nodes),
+            'tree' => DiscoveryTreeBuilder::build($nodes),
         ]);
     }
 
@@ -82,21 +81,5 @@ class DiscoveryController extends Controller
             'session_id' => $sessionId,
             'message' => 'Discovery test started — connect to stream endpoint',
         ]);
-    }
-
-    private function buildTree($nodes, ?int $parentId = null): array
-    {
-        return $nodes
-            ->where('parent_id', $parentId)
-            ->map(fn (DiscoveryNode $node) => [
-                'id' => $node->id,
-                'prompt_text' => $node->prompt_text,
-                'dtmf_option' => $node->dtmf_option,
-                'node_type' => $node->node_type,
-                'depth' => $node->depth,
-                'children' => $this->buildTree($nodes, $node->id),
-            ])
-            ->values()
-            ->all();
     }
 }

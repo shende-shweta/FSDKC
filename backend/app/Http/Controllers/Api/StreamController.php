@@ -16,7 +16,11 @@ class StreamController extends Controller
     public function discoveryEvents(Request $request, int $id): StreamedResponse
     {
         $sessionId = $request->string('session_id')->toString();
-        abort_if($sessionId === '', 400, 'session_id required');
+        abort_if(
+            ! preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $sessionId),
+            400,
+            'session_id must be a valid UUID'
+        );
 
         return $this->streamSession($sessionId);
     }
@@ -24,7 +28,11 @@ class StreamController extends Controller
     public function connectEvents(Request $request, int $id): StreamedResponse
     {
         $sessionId = $request->string('session_id')->toString();
-        abort_if($sessionId === '', 400, 'session_id required');
+        abort_if(
+            ! preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $sessionId),
+            400,
+            'session_id must be a valid UUID'
+        );
 
         return $this->streamSession($sessionId);
     }
@@ -34,20 +42,10 @@ class StreamController extends Controller
         return response()->stream(function () use ($sessionId): void {
             $sent = 0;
 
-            foreach ($this->mongo->getTestEvents($sessionId) as $event) {
-                echo 'data: '.json_encode($event)."\n\n";
-                ob_flush();
-                flush();
-                $sent++;
-                if (($event['event']['type'] ?? '') === 'complete') {
-                    return;
-                }
-            }
-
             $attempts = 0;
             while ($attempts < 60) {
-                $events = $this->mongo->getTestEvents($sessionId);
-                foreach (array_slice($events, $sent) as $event) {
+                $events = $this->mongo->getTestEventsSince($sessionId, $sent);
+                foreach ($events as $event) {
                     echo 'data: '.json_encode($event)."\n\n";
                     ob_flush();
                     flush();
