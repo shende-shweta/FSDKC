@@ -11,7 +11,8 @@ use Illuminate\Support\Str;
 class RealTimeTestService
 {
     public function __construct(
-        private readonly MongoService $mongo
+        private readonly MongoService $mongo,
+        private readonly ReachabilityService $reachability
     ) {}
 
     public function createSession(): string
@@ -115,11 +116,11 @@ class RealTimeTestService
         ]);
 
         $recent = ConnectCheckResult::where('connect_monitor_id', $monitorId)->orderByDesc('checked_at')->limit(20)->get();
-        $rate = $recent->count() > 0 ? ($recent->where('reachable', true)->count() / $recent->count()) * 100 : 100;
+        $pct = $this->reachability->calculatePct($recent);
 
         $monitor->update([
-            'reachability_pct' => round($rate, 2),
-            'status' => $rate < 90 ? 'alert' : 'active',
+            'reachability_pct' => $pct,
+            'status' => $this->reachability->statusFromPct($pct),
             'last_checked_at' => now(),
         ]);
 

@@ -19,12 +19,13 @@ class MongoService
     {
         $uri = config('database.mongodb.uri');
 
-        if ($uri) {
+        if ($uri && extension_loaded('mongodb')) {
             $this->client = new Client($uri);
             $db = $this->client->selectDatabase('klearcom');
             $this->transcripts = $db->selectCollection('transcripts');
             $this->testEvents = $db->selectCollection('test_events');
             $this->diagnostics = $db->selectCollection('call_diagnostics');
+            $this->ensureIndexes();
         }
     }
 
@@ -148,6 +149,28 @@ class MongoService
         );
 
         return array_map([$this, 'serializeDocument'], iterator_to_array($cursor));
+    }
+
+    private function ensureIndexes(): void
+    {
+        try {
+            // Compound index: session lookup sorted by insertion order (eliminates full collection scan).
+            $this->testEvents?->createIndex(
+                ['session_id' => 1, 'created_at' => 1],
+                ['background' => true, 'name' => 'session_created_compound']
+            );
+            // Supporting indexes for module/reference queries.
+            $this->transcripts?->createIndex(
+                ['module' => 1, 'reference_id' => 1, 'created_at' => -1],
+                ['background' => true, 'name' => 'module_ref_created']
+            );
+            $this->diagnostics?->createIndex(
+                ['module' => 1, 'reference_id' => 1, 'created_at' => -1],
+                ['background' => true, 'name' => 'module_ref_created']
+            );
+        } catch (\Throwable) {
+            // Index creation is best-effort; never block application boot.
+        }
     }
 
     private function serializeDocument($doc): array

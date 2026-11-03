@@ -2,11 +2,13 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ConnectCheckResult extends Model
 {
+    use HasFactory;
     protected $fillable = [
         'connect_monitor_id',
         'reachable',
