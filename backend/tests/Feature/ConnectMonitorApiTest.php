@@ -107,4 +107,50 @@ class ConnectMonitorApiTest extends TestCase
             ->assertJsonPath('computed.status', 'alert');
         $this->assertEquals(80.0, $response->json('computed.reachability_pct'));
     }
+
+    public function test_run_check_returns_session_id_for_valid_monitor(): void
+    {
+        // AC-04: throttle route is wired; async job is queued, not blocked
+        $monitor = ConnectMonitor::factory()->create();
+
+        $response = $this->postJson("/api/connect/monitors/{$monitor->id}/run-check");
+
+        $response->assertOk()
+            ->assertJsonStructure(['session_id', 'message']);
+        $this->assertMatchesRegularExpression(
+            '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/',
+            $response->json('session_id')
+        );
+    }
+
+    public function test_run_check_returns_404_for_missing_monitor(): void
+    {
+        $this->postJson('/api/connect/monitors/99999/run-check')
+            ->assertNotFound();
+    }
+
+    public function test_checks_response_includes_monitor_identity_fields(): void
+    {
+        $monitor = ConnectMonitor::factory()->create([
+            'name' => 'Identity Check TFN',
+            'toll_free_number' => '+18005550000',
+            'country_code' => 'US',
+        ]);
+
+        $this->getJson("/api/connect/monitors/{$monitor->id}/checks")
+            ->assertOk()
+            ->assertJsonStructure(['monitor' => ['id', 'name', 'toll_free_number', 'country_code']]);
+    }
+
+    public function test_store_accepts_optional_carrier_as_null(): void
+    {
+        $response = $this->postJson('/api/connect/monitors', [
+            'name' => 'No Carrier TFN',
+            'toll_free_number' => '+18005551111',
+            'country_code' => 'US',
+        ]);
+
+        $response->assertCreated();
+        $this->assertNull($response->json('data.carrier'));
+    }
 }
