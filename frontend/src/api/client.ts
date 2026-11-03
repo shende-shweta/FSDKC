@@ -5,9 +5,19 @@ export function getStreamUrl(path: string): string {
   return `${base}/api${path.startsWith('/') ? path : `/${path}`}`;
 }
 
+function getAuthHeaders(): Record<string, string> {
+  const token = localStorage.getItem('auth_token');
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+      ...getAuthHeaders(),
+      ...(options?.headers as Record<string, string> | undefined),
+    },
     ...options,
   });
 

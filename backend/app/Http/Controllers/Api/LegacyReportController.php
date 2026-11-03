@@ -4,51 +4,48 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Legacy\LegacyDataMapper;
-use App\Models\ConnectCheckResult;
 use App\Models\ConnectMonitor;
 use App\Models\DiscoveryJob;
 use App\Models\DiscoveryNode;
+use App\Services\DiscoveryService;
+use App\Services\ReachabilityService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
-/**
- * Fat controller — business logic, DB queries, and KPI math live here (anti-pattern).
- */
 class LegacyReportController extends Controller
 {
+    public function __construct(
+        private readonly DiscoveryService $discovery,
+        private readonly ReachabilityService $reachability
+    ) {}
+
     public function carrierSummary(Request $request): JsonResponse
     {
-        $filters = $request->all();
-        extract($filters);
+        $countryCode = $request->string('country_code')->toString() ?: null;
+        $carrier = $request->string('carrier')->toString() ?: null;
 
+        // Eager-load the 20 most-recent check results per monitor to eliminate N+1.
         $monitors = ConnectMonitor::query()
-            ->when(isset($country_code), fn ($q) => $q->where('country_code', $country_code))
-            ->when(isset($carrier), fn ($q) => $q->where('carrier', $carrier))
+            ->when($countryCode !== null, fn ($q) => $q->where('country_code', $countryCode))
+            ->when($carrier !== null, fn ($q) => $q->where('carrier', $carrier))
+            ->with(['checkResults' => fn ($q) => $q->orderByDesc('checked_at')->limit(20)])
             ->orderByDesc('reachability_pct')
             ->get();
 
-        $rows = [];
         $mapper = new LegacyDataMapper();
 
-        foreach ($monitors as $monitor) {
-            $recent = ConnectCheckResult::where('connect_monitor_id', $monitor->id)
-                ->orderByDesc('checked_at')
-                ->limit(20)
-                ->get();
+        $rows = $monitors->map(function (ConnectMonitor $monitor) use ($mapper): array {
+            $pct = $this->reachability->calculatePct($monitor->checkResults);
 
-            $successRate = $recent->count() > 0
-                ? ($recent->where('reachable', true)->count() / $recent->count()) * 100
-                : 100;
-
-            $rows[] = array_merge(
+            return array_merge(
                 $mapper->mapReportRow([
                     'name' => $monitor->name,
-                    'reachability_pct' => round($successRate, 2),
+                    'reachability_pct' => $pct,
                     'country_code' => $monitor->country_code,
                 ]),
                 ['monitor_id' => $monitor->id, 'carrier' => $monitor->carrier]
             );
-        }
+        })->all();
 
         return response()->json(['data' => $rows, 'total' => count($rows)]);
     }
@@ -58,36 +55,15 @@ class LegacyReportController extends Controller
         $job = DiscoveryJob::findOrFail($jobId);
         $nodes = DiscoveryNode::where('discovery_job_id', $jobId)->get();
 
-        $tree = $this->buildTree($nodes);
-        $maxDepth = $nodes->max('depth') ?? 0;
-        $transferCount = $nodes->where('node_type', 'transfer')->count();
-
         return response()->json([
             'job_id' => $job->id,
             'job_name' => $job->name,
-            'tree' => $tree,
+            'tree' => $this->discovery->buildTree($nodes),
             'stats' => [
-                'max_depth' => $maxDepth,
-                'transfer_nodes' => $transferCount,
+                'max_depth' => $nodes->max('depth') ?? 0,
+                'transfer_nodes' => $nodes->where('node_type', 'transfer')->count(),
                 'total_nodes' => $nodes->count(),
             ],
         ]);
-    }
-
-    /** Duplicate of DiscoveryController::buildTree — copy-paste debt */
-    private function buildTree($nodes, ?int $parentId = null): array
-    {
-        return $nodes
-            ->where('parent_id', $parentId)
-            ->map(fn (DiscoveryNode $node) => [
-                'id' => $node->id,
-                'prompt_text' => $node->prompt_text,
-                'dtmf_option' => $node->dtmf_option,
-                'node_type' => $node->node_type,
-                'depth' => $node->depth,
-                'children' => $this->buildTree($nodes, $node->id),
-            ])
-            ->values()
-            ->all();
     }
 }

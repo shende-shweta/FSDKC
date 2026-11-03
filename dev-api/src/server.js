@@ -10,12 +10,43 @@ import {
 } from './mongo.js';
 import { store, buildTree } from './store.js';
 import { createSession, runConnectTest, runDiscoveryTest } from './realtime.js';
+import { calculatePct, statusFromPct } from './utils/reachability.js';
 
 const PORT = process.env.PORT || 8080;
 const app = express();
 
-app.use(cors());
+const ALLOWED_ORIGINS = (process.env.APP_ALLOWED_ORIGINS ?? 'http://localhost:5173')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
+
+app.use(cors({ origin: ALLOWED_ORIGINS }));
 app.use(express.json());
+
+// Simple in-memory rate limiter for trigger endpoints (5 requests / 60 s per IP).
+const rateLimitStore = new Map();
+function rateLimit(maxRequests = 5, windowMs = 60_000) {
+  return (req, res, next) => {
+    const key = req.ip ?? 'unknown';
+    const now = Date.now();
+    const entry = rateLimitStore.get(key) ?? { count: 0, resetAt: now + windowMs };
+
+    if (now > entry.resetAt) {
+      entry.count = 0;
+      entry.resetAt = now + windowMs;
+    }
+
+    entry.count += 1;
+    rateLimitStore.set(key, entry);
+
+    if (entry.count > maxRequests) {
+      res.setHeader('Retry-After', Math.ceil((entry.resetAt - now) / 1000));
+      return res.status(429).json({ error: 'Too many requests — try again shortly.' });
+    }
+
+    next();
+  };
+}
 
 // ── Health & MongoDB ──────────────────────────────────────────────
 
@@ -86,15 +117,35 @@ app.get('/api/discovery/jobs', (_req, res) => {
 });
 
 app.post('/api/discovery/jobs', (req, res) => {
+  const { name, phone_number, country_code, languages } = req.body ?? {};
+
+  const errors = {};
+  if (!name || typeof name !== 'string' || name.trim() === '') {
+    errors.name = 'The name field is required.';
+  }
+  if (!phone_number || !/^\+[1-9]\d{6,14}$/.test(phone_number)) {
+    errors.phone_number = 'The phone number must be in E.164 format (e.g. +18005551234).';
+  }
+  if (!country_code || !/^[A-Z]{2}$/.test(country_code)) {
+    errors.country_code = 'The country code must be a 2-letter ISO 3166-1 alpha-2 code (e.g. US, GB).';
+  }
+  if (languages !== undefined && (!Array.isArray(languages) || languages.length > 10)) {
+    errors.languages = 'languages must be an array with at most 10 items.';
+  }
+
+  if (Object.keys(errors).length > 0) {
+    return res.status(422).json({ errors });
+  }
+
   const job = {
     id: store.nextJobId++,
-    name: req.body.name,
-    phone_number: req.body.phone_number,
-    country_code: req.body.country_code,
+    name: name.trim(),
+    phone_number,
+    country_code,
     status: 'pending',
     menu_depth: 0,
     nodes_discovered: 0,
-    languages: req.body.languages ?? ['en'],
+    languages: languages ?? ['en'],
     started_at: null,
     completed_at: null,
   };
@@ -120,7 +171,7 @@ app.get('/api/discovery/jobs/:id/tree', (req, res) => {
   res.json({ job_id: job.id, job_name: job.name, tree: buildTree(nodes) });
 });
 
-app.post('/api/discovery/jobs/:id/start', async (req, res) => {
+app.post('/api/discovery/jobs/:id/start', rateLimit(5, 60_000), async (req, res) => {
   const jobId = Number(req.params.id);
   const job = store.discoveryJobs.find((j) => j.id === jobId);
   if (!job) return res.status(404).json({ error: 'Not found' });
@@ -140,18 +191,47 @@ app.get('/api/discovery/jobs/:id/stream', (req, res) => {
 
 // ── Connect ───────────────────────────────────────────────────────
 
-app.post('/api/connect/monitors/bulk-import', (req, res) => {
-  // No validation, no rate limiting — accepts arbitrary body (security audit finding)
+app.post('/api/connect/monitors/bulk-import', rateLimit(5, 60_000), (req, res) => {
   const items = Array.isArray(req.body) ? req.body : req.body?.monitors ?? [];
+
+  if (items.length === 0) {
+    return res.status(422).json({ error: 'monitors array must not be empty.' });
+  }
+  if (items.length > 100) {
+    return res.status(422).json({ error: 'A maximum of 100 monitors may be imported at once.' });
+  }
+
+  const errors = [];
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    const itemErrors = {};
+    if (!item.name || typeof item.name !== 'string' || item.name.trim() === '') {
+      itemErrors.name = 'required';
+    }
+    if (!item.toll_free_number || typeof item.toll_free_number !== 'string') {
+      itemErrors.toll_free_number = 'required';
+    }
+    if (!item.country_code || !/^[A-Z]{2}$/.test(item.country_code)) {
+      itemErrors.country_code = 'must be a 2-letter ISO code (e.g. US)';
+    }
+    if (Object.keys(itemErrors).length > 0) {
+      errors.push({ index: i, errors: itemErrors });
+    }
+  }
+
+  if (errors.length > 0) {
+    return res.status(422).json({ message: 'Validation failed for one or more items.', errors });
+  }
+
   const created = items.map((item) => {
     const monitor = {
       id: store.nextMonitorId++,
-      name: item.name ?? 'Imported',
-      toll_free_number: item.toll_free_number ?? '',
-      country_code: item.country_code ?? 'US',
+      name: item.name.trim(),
+      toll_free_number: item.toll_free_number,
+      country_code: item.country_code,
       carrier: item.carrier ?? null,
       status: 'active',
-      reachability_pct: item.reachability_pct ?? 100,
+      reachability_pct: typeof item.reachability_pct === 'number' ? item.reachability_pct : 100,
       last_checked_at: null,
     };
     store.connectMonitors.unshift(monitor);
@@ -165,12 +245,29 @@ app.get('/api/connect/monitors', (_req, res) => {
 });
 
 app.post('/api/connect/monitors', (req, res) => {
+  const { name, toll_free_number, country_code, carrier } = req.body ?? {};
+
+  const errors = {};
+  if (!name || typeof name !== 'string' || name.trim() === '') {
+    errors.name = 'The name field is required.';
+  }
+  if (!toll_free_number || !/^\+?[0-9\s\-()]{7,20}$/.test(toll_free_number)) {
+    errors.toll_free_number = 'The toll free number must be 7–20 digits.';
+  }
+  if (!country_code || !/^[A-Z]{2}$/.test(country_code)) {
+    errors.country_code = 'The country code must be a 2-letter ISO code (e.g. US).';
+  }
+
+  if (Object.keys(errors).length > 0) {
+    return res.status(422).json({ errors });
+  }
+
   const monitor = {
     id: store.nextMonitorId++,
-    name: req.body.name,
-    toll_free_number: req.body.toll_free_number,
-    country_code: req.body.country_code,
-    carrier: req.body.carrier ?? null,
+    name: name.trim(),
+    toll_free_number,
+    country_code,
+    carrier: carrier ?? null,
     status: 'active',
     reachability_pct: 100,
     last_checked_at: null,
@@ -195,13 +292,20 @@ app.get('/api/connect/monitors/:id/checks', (req, res) => {
   if (!monitor) return res.status(404).json({ error: 'Not found' });
 
   const checks = store.connectChecks.filter((c) => c.connect_monitor_id === monitor.id);
+  const recent = checks.slice(0, 20);
+  const pct = calculatePct(recent);
+
   res.json({
     monitor: { id: monitor.id, name: monitor.name, toll_free_number: monitor.toll_free_number, country_code: monitor.country_code },
     data: checks,
+    computed: {
+      reachability_pct: pct,
+      status: statusFromPct(pct),
+    },
   });
 });
 
-app.post('/api/connect/monitors/:id/run-check', async (req, res) => {
+app.post('/api/connect/monitors/:id/run-check', rateLimit(5, 60_000), async (req, res) => {
   const monitorId = Number(req.params.id);
   const monitor = store.connectMonitors.find((m) => m.id === monitorId);
   if (!monitor) return res.status(404).json({ error: 'Not found' });

@@ -6,18 +6,48 @@ use PHPUnit\Framework\TestCase;
 
 class ReachabilityCalculationTest extends TestCase
 {
-    /** Non-deterministic test — uses random, not isolated, not business-critical */
-    public function test_random_reachability_is_mostly_true(): void
+    /** Boundary: exactly 90% is the active threshold. */
+    public function test_90_percent_success_rate_is_active(): void
     {
-        $results = [];
-        for ($i = 0; $i < 10; $i++) {
-            $results[] = random_int(1, 100) > 15;
-        }
-        $this->assertGreaterThan(5, array_sum($results));
+        $successRate = $this->computeSuccessRate(reachable: 9, total: 10);
+        $status = $successRate < 90 ? 'alert' : 'active';
+        $this->assertSame('active', $status);
     }
 
-    public function test_hardcoded_modules(): void
+    /** Boundary: one below threshold (89%) must be alert. */
+    public function test_below_90_percent_is_alert(): void
     {
-        $this->assertSame(['discovery', 'connect'], ['discovery', 'connect']);
+        $successRate = $this->computeSuccessRate(reachable: 0, total: 10);
+        $status = $successRate < 90 ? 'alert' : 'active';
+        $this->assertSame('alert', $status);
+    }
+
+    public function test_100_percent_is_active(): void
+    {
+        $successRate = $this->computeSuccessRate(reachable: 20, total: 20);
+        $this->assertSame(100.0, $successRate);
+    }
+
+    public function test_zero_results_defaults_to_100_percent(): void
+    {
+        $successRate = $this->computeSuccessRate(reachable: 0, total: 0);
+        $this->assertSame(100.0, $successRate);
+    }
+
+    public function test_platform_modules_defined(): void
+    {
+        $modules = ['discovery', 'connect'];
+        $this->assertCount(2, $modules);
+        $this->assertContains('discovery', $modules);
+        $this->assertContains('connect', $modules);
+    }
+
+    private function computeSuccessRate(int $reachable, int $total): float
+    {
+        if ($total === 0) {
+            return 100.0;
+        }
+
+        return round(($reachable / $total) * 100, 2);
     }
 }

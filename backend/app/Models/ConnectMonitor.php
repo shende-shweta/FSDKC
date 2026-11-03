@@ -2,11 +2,13 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ConnectMonitor extends Model
 {
+    use HasFactory;
     protected $fillable = [
         'name',
         'toll_free_number',
